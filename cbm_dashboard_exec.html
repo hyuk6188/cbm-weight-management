@@ -509,24 +509,37 @@ function normalizeMeasurementRows(rows){
 function renderAll(){
   renderKPI(); renderCompare(); renderBase(); renderMeas(); updateCodeSel();
 }
+function loadJsonp(url){
+  return new Promise((resolve,reject)=>{
+    const cb='cbmSync_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    const sep=url.includes('?')?'&':'?';
+    const timer=setTimeout(()=>cleanup(new Error('동기화 응답 시간이 초과되었습니다.')),15000);
+    function cleanup(err,data){
+      clearTimeout(timer);
+      delete window[cb];
+      script.remove();
+      err?reject(err):resolve(data);
+    }
+    window[cb]=data=>cleanup(null,data);
+    script.onerror=()=>cleanup(new Error('Apps Script URL을 불러오지 못했습니다.'));
+    script.src=`${url}${sep}callback=${encodeURIComponent(cb)}&ts=${Date.now()}`;
+    document.head.appendChild(script);
+  });
+}
 async function loadCloudData(opts={}){
-  if(_syncLoading || !GOOGLE_SHEET_ID) return;
+  if(_syncLoading) return;
+  if(!APPS_SCRIPT_WEBAPP_URL){
+    setSyncStatus('Apps Script 연결 필요', 'warn');
+    if(opts.manual) alert('실시간 동기화를 사용하려면 google-apps-script.gs를 웹앱으로 배포한 뒤 APPS_SCRIPT_WEBAPP_URL에 입력해야 합니다.');
+    return;
+  }
   _syncLoading=true;
   setSyncStatus('시트 읽는 중', 'warn');
   try{
-    let baseRows, measRows;
-    if(APPS_SCRIPT_WEBAPP_URL){
-      const res=await fetch(`${APPS_SCRIPT_WEBAPP_URL}?action=load&ts=${Date.now()}`);
-      if(!res.ok) throw new Error(`Apps Script ${res.status}`);
-      const json=await res.json();
-      baseRows=[['id','code','color','name','w','d','h','kg','createdAt'],...(json.base||[]).map(x=>[x.id,x.code,x.color,x.name,x.w,x.d,x.h,x.kg,x.createdAt])];
-      measRows=[['id','code','baseId','date','by','w','d','h','kg','memo'],...(json.measurements||[]).map(x=>[x.id,x.code,x.baseId,x.date,x.by,x.w,x.d,x.h,x.kg,x.memo])];
-    }else{
-      const [baseRes, measRes]=await Promise.all([fetch(csvUrl('BaseData')), fetch(csvUrl('Measurements'))]);
-      if(!baseRes.ok||!measRes.ok) throw new Error('Google Sheet CSV 접근 권한을 확인해 주세요.');
-      baseRows=parseCSV(await baseRes.text());
-      measRows=parseCSV(await measRes.text());
-    }
+    const json=await loadJsonp(`${APPS_SCRIPT_WEBAPP_URL}?action=load`);
+    const baseRows=[['id','code','color','name','w','d','h','kg','createdAt'],...(json.base||[]).map(x=>[x.id,x.code,x.color,x.name,x.w,x.d,x.h,x.kg,x.createdAt])];
+    const measRows=[['id','code','baseId','date','by','w','d','h','kg','memo'],...(json.measurements||[]).map(x=>[x.id,x.code,x.baseId,x.date,x.by,x.w,x.d,x.h,x.kg,x.memo])];
     const nextBase=normalizeBaseRows(baseRows);
     const nextMeas=normalizeMeasurementRows(measRows);
     if(nextBase.length) baseItems=nextBase;
@@ -552,12 +565,12 @@ async function saveCloudData(){
   if(!APPS_SCRIPT_WEBAPP_URL) return;
   setSyncStatus('시트 저장 중', 'warn');
   try{
-    const res=await fetch(APPS_SCRIPT_WEBAPP_URL,{
+    await fetch(APPS_SCRIPT_WEBAPP_URL,{
       method:'POST',
+      mode:'no-cors',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({base:baseItems,measurements})
     });
-    if(!res.ok) throw new Error(`Apps Script ${res.status}`);
     setSyncStatus('시트 저장 완료', 'ok');
   }catch(err){
     setSyncStatus('저장 실패', 'err');
@@ -565,7 +578,10 @@ async function saveCloudData(){
   }
 }
 function startCloudSync(){
-  if(!GOOGLE_SHEET_ID&&!APPS_SCRIPT_WEBAPP_URL) return;
+  if(!APPS_SCRIPT_WEBAPP_URL){
+    setSyncStatus('Apps Script 연결 필요', 'warn');
+    return;
+  }
   loadCloudData();
   clearInterval(_syncTimer);
   _syncTimer=setInterval(()=>loadCloudData(), SYNC_POLL_MS);

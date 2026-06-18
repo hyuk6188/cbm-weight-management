@@ -2,8 +2,8 @@ const SPREADSHEET_ID = '1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZPlYI';
 const BASE_SHEET = 'BaseData';
 const MEAS_SHEET = 'Measurements';
 
-function doGet() {
-  return jsonResponse(loadData_());
+function doGet(e) {
+  return jsonResponse(loadData_(), e && e.parameter && e.parameter.callback);
 }
 
 function doPost(e) {
@@ -12,9 +12,12 @@ function doPost(e) {
   return jsonResponse({ ok: true, savedAt: new Date().toISOString() });
 }
 
-function jsonResponse(data) {
+function jsonResponse(data, callback) {
+  const body = callback
+    ? `${callback}(${JSON.stringify(data)});`
+    : JSON.stringify(data);
   return ContentService
-    .createTextOutput(JSON.stringify(data))
+    .createTextOutput(body)
     .setMimeType(ContentService.MimeType.JSON);
 }
 
