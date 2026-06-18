@@ -12,6 +12,9 @@ if (location.hostname.endsWith('github.io')) {
 if (location.protocol === 'file:') {
   location.replace(window.CBM_SYNC_APP_URL);
 }
+if (location.hostname.endsWith('github.io') || location.protocol === 'file:') {
+  document.documentElement.innerHTML = '<head><meta charset="UTF-8"><title>CBM 동기화 앱으로 이동</title></head><body style="font-family:Arial,sans-serif;padding:32px"><h2>CBM 동기화 앱으로 이동 중입니다.</h2><p>자동 이동이 안 되면 아래 링크를 눌러 주세요.</p><p><a href="'+window.CBM_SYNC_APP_URL+'">'+window.CBM_SYNC_APP_URL+'</a></p></body>';
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
