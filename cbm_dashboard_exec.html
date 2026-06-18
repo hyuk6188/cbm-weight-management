@@ -585,11 +585,12 @@ function applyCloudData(json){
   const nextBase=normalizeBaseRows(baseRows);
   const nextMeas=normalizeMeasurementRows(measRows);
   if(nextBase.length) baseItems=nextBase;
-  measurements=nextMeas;
+  if(nextMeas.length) measurements=nextMeas;
+  ensureSeedData();
   store.set('cbm_base', JSON.stringify(baseItems));
   store.set('cbm_meas', JSON.stringify(measurements));
   renderAll();
-  setSyncStatus(`시트 동기화 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`, 'ok');
+  setSyncStatus(nextBase.length && nextMeas.length ? `시트 동기화 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}` : '기본 데이터 표시 중', nextBase.length && nextMeas.length ? 'ok' : 'warn');
 }
 async function loadCloudData(opts={}){
   if(_syncLoading) return;
