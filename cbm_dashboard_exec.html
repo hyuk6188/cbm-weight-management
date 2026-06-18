@@ -65,7 +65,6 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .hero-title h1{font-size:24px;font-weight:700;color:var(--g800);margin-bottom:4px;}
 .hero-title h1 em{color:var(--blue);font-style:normal;}
 .hero-title p{font-size:14px;color:var(--g400);}
-.hero-meta{display:flex;gap:8px;}
 .chip{background:var(--g100);color:var(--g600);border:1px solid var(--g200);border-radius:20px;padding:4px 12px;font-size:13px;}
 .hero-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .hkpi{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:14px 20px;}
@@ -260,9 +259,6 @@ footer strong{color:var(--g600);}
     <div class="hero-top">
       <div class="hero-title">
         <h1>포장박스 <em>CBM & 중량</em> 비교</h1>
-      </div>
-      <div class="hero-meta">
-        <span class="chip" id="hdr-date">—</span>
       </div>
     </div>
     <div class="hero-kpis">
@@ -701,7 +697,8 @@ function renderKPI(){
   document.getElementById('kpi-ok').textContent    = ok;
   document.getElementById('kpi-err').textContent   = err;
   const d=new Date();
-  document.getElementById('hdr-date').textContent  = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  const hdrDate = document.getElementById('hdr-date');
+  if(hdrDate) hdrDate.textContent = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   document.getElementById('footInfo').textContent  = `기준 ${baseItems.length}건 · 실측 ${measurements.length}건`;
 }
 
