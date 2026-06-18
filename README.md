@@ -22,7 +22,15 @@ https://docs.google.com/spreadsheets/d/1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZP
 
 ## 쓰기 동기화
 
-브라우저에서 입력한 내용을 Google Sheets에 저장하고 다른 PC에서 실시간으로 보려면 아래 순서로 연결합니다.
+브라우저에서 입력한 내용을 Google Sheets에 저장하고 다른 PC에서 실시간으로 보려면 아래 Apps Script 웹앱으로 연결합니다.
+
+```text
+https://script.google.com/macros/s/AKfycbydZS45r-GF8gmo_IQfuxMp5FpSe1ZAEBwLrJ11CKSuOM6YSF1A0j1wKNyg96H_JIqpIQ/exec
+```
+
+현재 Google Workspace 정책상 익명 공개 웹앱은 403으로 막힐 수 있어, Google 계정 로그인 상태에서 동기화하는 방식으로 배포했습니다.
+
+재배포가 필요하면 아래 순서로 연결합니다.
 
 1. Google Sheets에서 `확장 프로그램 > Apps Script`를 엽니다.
 2. `google-apps-script.gs` 내용을 붙여 넣고 저장합니다.
