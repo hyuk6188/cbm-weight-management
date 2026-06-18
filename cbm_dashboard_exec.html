@@ -9,6 +9,9 @@ window.CBM_SYNC_APP_URL = 'https://script.google.com/macros/s/AKfycbziJBymbJthT2
 if (location.hostname.endsWith('github.io')) {
   location.replace(window.CBM_SYNC_APP_URL);
 }
+if (location.protocol === 'file:') {
+  location.replace(window.CBM_SYNC_APP_URL);
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -447,9 +450,17 @@ let _pushTimer = null;
 const DEMO_BASE = [{"id":1781758854473,"code":"CDB0082","color":"RCN","name":"2단 도어","w":795,"d":470,"h":70,"kg":6,"createdAt":"2026-06-18"},{"id":1781758899298,"code":"CEC0083S","color":"WW","name":"3단 상부선반","w":925,"d":470,"h":60,"kg":5,"createdAt":"2026-06-18"},{"id":1781758929951,"code":"FGP0302","color":"RCNBGM","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"},{"id":1781758950613,"code":"FGP0302","color":"WW","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"}];
 const DEMO_MEAS = [{"id":1781759248597,"code":"CDB0082","baseId":1781758854473,"date":"2026-06-17","by":"배훈기","w":755,"d":435,"h":40,"kg":6.2,"memo":""},{"id":1781759280179,"code":"CEC0083S","baseId":1781758899298,"date":"2026-06-17","by":"배훈기","w":885,"d":440,"h":40,"kg":5.6,"memo":""},{"id":1781759297786,"code":"FGP0302","baseId":1781758929951,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""},{"id":1781759315793,"code":"FGP0302","baseId":1781758950613,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""}];
 
-let baseItems, measurements;
-try { baseItems    = JSON.parse(store.get('cbm_base') || 'null') || [...DEMO_BASE]; } catch(e){ baseItems=[...DEMO_BASE]; store.del('cbm_base'); }
-try { measurements = JSON.parse(store.get('cbm_meas') || 'null') || [...DEMO_MEAS]; } catch(e){ measurements=[...DEMO_MEAS]; store.del('cbm_meas'); }
+function loadStoredRows(key, fallback){
+  try {
+    const rows = JSON.parse(store.get(key) || 'null');
+    return Array.isArray(rows) && rows.length ? rows : [...fallback];
+  } catch(e) {
+    store.del(key);
+    return [...fallback];
+  }
+}
+let baseItems = loadStoredRows('cbm_base', DEMO_BASE);
+let measurements = loadStoredRows('cbm_meas', DEMO_MEAS);
 let baseEditId  = null;
 let measEditId  = null;
 let curStatus   = 'all';
@@ -537,12 +548,15 @@ function loadJsonp(url){
 function isGithubHost(){
   return location.hostname.endsWith('github.io');
 }
+function isLocalFile(){
+  return location.protocol === 'file:';
+}
 function isAppsScriptHost(){
   return !!(window.google && google.script && google.script.run);
 }
 function redirectToAppsScriptIfNeeded(){
   if(!REDIRECT_GITHUB_TO_APPS_SCRIPT || !APPS_SCRIPT_WEBAPP_URL) return false;
-  if(isGithubHost()){
+  if(isGithubHost() || isLocalFile()){
     setSyncStatus('동기화 앱으로 이동 중', 'warn');
     location.replace(APPS_SCRIPT_WEBAPP_URL);
     return true;
@@ -563,7 +577,7 @@ function applyCloudData(json){
 }
 async function loadCloudData(opts={}){
   if(_syncLoading) return;
-  if(isGithubHost()){
+  if(isGithubHost() || isLocalFile()){
     location.replace(APPS_SCRIPT_WEBAPP_URL);
     return;
   }
