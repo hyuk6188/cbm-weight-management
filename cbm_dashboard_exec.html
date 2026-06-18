@@ -465,6 +465,22 @@ let measEditId  = null;
 let curStatus   = 'all';
 let cmpStatusVal = 'all';
 
+function ensureSeedData(){
+  let changed=false;
+  if(!Array.isArray(baseItems) || !baseItems.length){
+    baseItems=[...DEMO_BASE];
+    changed=true;
+  }
+  if(!Array.isArray(measurements) || !measurements.length){
+    measurements=[...DEMO_MEAS];
+    changed=true;
+  }
+  if(changed){
+    store.set('cbm_base', JSON.stringify(baseItems));
+    store.set('cbm_meas', JSON.stringify(measurements));
+  }
+}
+
 function persistBase() { store.set('cbm_base', JSON.stringify(baseItems)); queueCloudSave(); }
 function persistMeas() { store.set('cbm_meas', JSON.stringify(measurements)); queueCloudSave(); }
 function setSyncStatus(text, state='warn'){
@@ -524,6 +540,7 @@ function normalizeMeasurementRows(rows){
   })).filter(r=>r.code);
 }
 function renderAll(){
+  ensureSeedData();
   renderKPI(); renderCompare(); renderBase(); renderMeas(); updateCodeSel();
 }
 function loadJsonp(url){
@@ -643,9 +660,13 @@ async function saveCloudData(){
   }
 }
 function startCloudSync(){
+  ensureSeedData();
   if(!APPS_SCRIPT_WEBAPP_URL){
     setSyncStatus('Apps Script 연결 필요', 'warn');
     return;
+  }
+  if(!isAppsScriptHost() && !isGithubHost() && !isLocalFile()){
+    setSyncStatus('시트 연결 대기', 'warn');
   }
   loadCloudData();
   clearInterval(_syncTimer);
@@ -1425,6 +1446,7 @@ function startWeekAutoRefresh(){
 
 function initApp(){
   if(redirectToAppsScriptIfNeeded()) return;
+  ensureSeedData();
   renderKPI();
   setStatus('all');
   setCmpStatus('all');
