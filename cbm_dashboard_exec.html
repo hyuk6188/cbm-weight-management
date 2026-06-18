@@ -478,6 +478,10 @@ function ensureSeedData(){
   if(changed){
     store.set('cbm_base', JSON.stringify(baseItems));
     store.set('cbm_meas', JSON.stringify(measurements));
+    ['cmpFrom','cmpTo'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.value='';
+    });
   }
 }
 
@@ -698,6 +702,7 @@ function clearE(fid,eid){
 
 /* ── KPI ── */
 function renderKPI(){
+  ensureSeedData();
   const tol=parseFloat((document.getElementById('tol')||{value:'5'}).value)||5;
   let total=0, ok=0, err=0;
   baseItems.forEach(base=>{
@@ -721,7 +726,8 @@ function renderKPI(){
   const d=new Date();
   const hdrDate = document.getElementById('hdr-date');
   if(hdrDate) hdrDate.textContent = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-  document.getElementById('footInfo').textContent  = `기준 ${baseItems.length}건 · 실측 ${measurements.length}건`;
+  const footInfo = document.getElementById('footInfo');
+  if(footInfo) footInfo.textContent = `기준 ${baseItems.length}건 · 실측 ${measurements.length}건`;
 }
 
 /* ── TAB ── */
@@ -1009,6 +1015,7 @@ function renderMeas(){
 
 /* ── COMPARE TAB ── */
 function renderCompare(){
+  ensureSeedData();
   const tol=parseFloat(document.getElementById('tol').value)||5;
   const q=(document.getElementById('cmpQ')||{value:''}).value.toLowerCase();
   const from=(document.getElementById('cmpFrom')||{value:''}).value;
