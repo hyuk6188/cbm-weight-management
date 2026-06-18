@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>포장박스 CBM & 중량 관리</title>
+<script>
+window.CBM_SYNC_APP_URL = 'https://script.google.com/macros/s/AKfycbziJBymbJthT2slzUPcXza2Nb_5GVvhjXrC9qWsOi87G5u0ZDyXwazafhEc5f_IWoRyMw/exec';
+if (location.hostname.endsWith('github.io')) {
+  location.replace(window.CBM_SYNC_APP_URL);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -431,7 +437,7 @@ const store = {
 /* ── DATA ── */
 
 const GOOGLE_SHEET_ID = '1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZPlYI';
-const APPS_SCRIPT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbziJBymbJthT2slzUPcXza2Nb_5GVvhjXrC9qWsOi87G5u0ZDyXwazafhEc5f_IWoRyMw/exec';
+const APPS_SCRIPT_WEBAPP_URL = window.CBM_SYNC_APP_URL || 'https://script.google.com/macros/s/AKfycbziJBymbJthT2slzUPcXza2Nb_5GVvhjXrC9qWsOi87G5u0ZDyXwazafhEc5f_IWoRyMw/exec';
 const SYNC_POLL_MS = 60000;
 const REDIRECT_GITHUB_TO_APPS_SCRIPT = true;
 let _syncLoading = false;
@@ -528,12 +534,15 @@ function loadJsonp(url){
     document.head.appendChild(script);
   });
 }
+function isGithubHost(){
+  return location.hostname.endsWith('github.io');
+}
 function isAppsScriptHost(){
   return !!(window.google && google.script && google.script.run);
 }
 function redirectToAppsScriptIfNeeded(){
   if(!REDIRECT_GITHUB_TO_APPS_SCRIPT || !APPS_SCRIPT_WEBAPP_URL) return false;
-  if(location.hostname.endsWith('github.io')){
+  if(isGithubHost()){
     setSyncStatus('동기화 앱으로 이동 중', 'warn');
     location.replace(APPS_SCRIPT_WEBAPP_URL);
     return true;
@@ -554,6 +563,10 @@ function applyCloudData(json){
 }
 async function loadCloudData(opts={}){
   if(_syncLoading) return;
+  if(isGithubHost()){
+    location.replace(APPS_SCRIPT_WEBAPP_URL);
+    return;
+  }
   if(isAppsScriptHost()){
     _syncLoading=true;
     setSyncStatus('시트 읽는 중', 'warn');
