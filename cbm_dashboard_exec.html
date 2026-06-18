@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포장박스 CBM & 중량 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+:root {
+  --navy:#0D1F3C; --navy2:#162848; --blue:#1A56DB; --blue-lt:#EBF0FD;
+  --teal:#0A7C59; --teal-lt:#E6F4EF; --amber:#92400E; --amber-lt:#FEF3C7;
+  --red:#991B1B; --red-lt:#FEE2E2;
+  --g50:#F8F9FC; --g100:#F1F3F8; --g200:#E2E6EF; --g400:#94A3B8; --g600:#475569; --g800:#1E293B;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--g50);color:var(--g800);font-size:16px;-webkit-font-smoothing:antialiased;}
+@media print{
+  .no-print{display:none!important;}
+  body{background:white;font-size:11px;}
+  nav{display:none!important;}
+  .hero{-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid;border-bottom:none!important;padding:0.8rem 2rem!important;margin-bottom:0!important;}
+  .hero-inner{max-width:100%!important;}
+  .wrapper{max-width:100%!important;padding:0.8rem 2rem!important;margin-top:0!important;}
+  .hkpi{-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid;}
+  .tab-bar,.msb,footer{display:none!important;}
+  .tbl-wrap{overflow:visible;}
+  table{page-break-inside:auto;}
+  tr{page-break-inside:avoid;}
+}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:54px;box-shadow:0 1px 0 var(--g200),0 2px 8px rgba(0,0,0,.06);}
+.nav-logo{color:var(--g800);font-size:16px;font-weight:700;}
+.nav-logo span{color:var(--g400);font-weight:400;font-size:13px;}
+.nav-tabs{display:flex;margin-left:12px;}
+.nav-tab{color:var(--g400);font-size:15px;padding:0 16px;height:54px;display:flex;align-items:center;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;user-select:none;}
+.nav-tab.active,.nav-tab:hover{color:var(--blue);border-bottom-color:var(--blue);}
+.nav-left{display:flex;align-items:center;}
+.nav-right{display:flex;gap:8px;}
+.nav-btn{background:var(--g50);color:var(--g600);border:1px solid var(--g200);border-radius:6px;padding:6px 14px;font-size:14px;cursor:pointer;font-family:inherit;}
+.nav-btn:hover{background:var(--g100);}
+.sync-chip{display:flex;align-items:center;gap:6px;background:var(--g50);color:var(--g600);border:1px solid var(--g200);border-radius:999px;padding:5px 10px;font-size:12px;white-space:nowrap;}
+.sync-chip::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--g400);}
+.sync-chip.ok::before{background:var(--teal);}
+.sync-chip.warn::before{background:var(--amber);}
+.sync-chip.err::before{background:var(--red);}
+
+/* HERO */
+.hero{background:white;border-bottom:1px solid var(--g200);padding:1.8rem 2rem;overflow:hidden;}
+.hero-inner{max-width:1100px;margin:0 auto;}
+.hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;}
+.hero-title h1{font-size:24px;font-weight:700;color:var(--g800);margin-bottom:4px;}
+.hero-title h1 em{color:var(--blue);font-style:normal;}
+.hero-title p{font-size:14px;color:var(--g400);}
+.hero-meta{display:flex;gap:8px;}
+.chip{background:var(--g100);color:var(--g600);border:1px solid var(--g200);border-radius:20px;padding:4px 12px;font-size:13px;}
+.hero-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.hkpi{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:14px 20px;}
+.hkpi .n{font-size:34px;font-weight:800;line-height:1;margin-bottom:0;}
+.hkpi .n.blue{color:var(--blue);} .hkpi .n.green{color:var(--teal);} .hkpi .n.red{color:var(--red);}
+.hkpi .l{font-size:14px;color:var(--g600);margin-bottom:8px;}
+.hkpi .s{font-size:11px;color:var(--g400);margin-top:1px;}
+
+/* LAYOUT */
+.wrapper{max-width:calc(1100px + 4rem);margin:0 auto;padding:1.5rem 2rem 3rem;}
+.pane{display:none;} .pane.active{display:block;}
+
+/* TOOLBAR */
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:white;border:1px solid var(--g200);border-radius:10px;padding:10px 16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.tb-btn{height:36px;padding:0 16px;font-size:14px;border-radius:6px;border:1px solid var(--g200);background:var(--g50);color:var(--g600);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s;}
+.tb-btn:hover{background:var(--g100);}
+.tb-btn.primary{background:var(--blue);color:white;border-color:var(--blue);}
+.tb-btn.primary:hover{background:#1647c0;}
+
+/* MULTI SEARCH BAR */
+.msb{display:flex;align-items:center;flex-wrap:nowrap;background:white;border:1px solid var(--g200);border-radius:10px;padding:0 12px;margin-bottom:12px;height:52px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.msb-field{display:flex;align-items:center;gap:8px;flex:1;}
+.msb-label{font-size:14px;font-weight:600;color:var(--g400);white-space:nowrap;min-width:58px;}
+.msb-input-wrap{flex:1;}
+.msb-dates{display:flex;align-items:center;gap:4px;min-width:0;}
+.msb-dates input[type=date]{height:34px;font-size:14px;padding:0 7px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);color:var(--g800);width:120px;min-width:0;}
+.msb-dates input[type=date]:focus{border-color:var(--blue);background:white;}
+.msb-tilde{font-size:13px;color:var(--g400);}
+.msb-status{display:flex;gap:4px;flex-shrink:0;}
+.msb-chip{height:30px;padding:0 12px;font-size:14px;border-radius:15px;border:1.5px solid var(--g200);background:var(--g50);color:var(--g600);cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;}
+.msb-chip.active{background:var(--blue);color:white;border-color:var(--blue);}
+.msb-chip.ok.active{background:var(--teal);color:white;border-color:var(--teal);}
+.msb-chip.err.active{background:var(--red);color:white;border-color:var(--red);}
+.msb-chip:not(.active):hover{background:var(--g100);}
+.msb-div{width:1px;height:28px;background:var(--g200);margin:0 10px;flex-shrink:0;}
+.msb-reset{width:28px;height:28px;border-radius:50%;border:1px solid var(--g200);background:var(--g50);color:var(--g400);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:6px;transition:all .15s;}
+.msb-reset:hover{background:var(--red-lt);color:var(--red);border-color:#FCA5A5;}
+
+/* DETAIL MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:white;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.22);width:100%;max-width:760px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--g200);flex-shrink:0;}
+.modal-title{font-size:15px;font-weight:700;color:var(--g800);}
+.modal-sub{font-size:12px;color:var(--g400);margin-top:2px;}
+.modal-close{background:none;border:none;color:var(--g400);font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;}
+.modal-close:hover{color:var(--red);}
+.modal-body{overflow-y:auto;padding:16px 20px;}
+.dbase-card{background:var(--g50);border:1px solid var(--g200);border-radius:8px;padding:12px 16px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px 24px;}
+.dbc{display:flex;flex-direction:column;gap:2px;}
+.dbc .dl{font-size:10px;color:var(--g400);font-weight:600;text-transform:uppercase;}
+.dbc .dv{font-size:13px;font-weight:600;color:var(--g800);}
+.detail-sec{font-size:11px;font-weight:700;color:var(--g600);margin-bottom:6px;letter-spacing:.04em;}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px;}
+.dtbl th{background:var(--g100);padding:6px 8px;text-align:center;color:var(--g600);font-weight:600;border-bottom:1px solid var(--g200);}
+.dtbl td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--g100);}
+.dtbl tr:last-child td{border-bottom:none;}
+.dtbl .base-row td{background:var(--blue-lt);font-weight:600;}
+.dtbl .ok-row td{color:var(--g800);}
+.d-ok{color:var(--teal);font-weight:600;}
+.d-err{color:var(--red);font-weight:600;}
+.d-neutral{color:var(--g400);}
+tr.clickable:hover td{background:var(--g50);cursor:pointer;}
+
+/* CMP CARDS */
+.cmp-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;}
+.cmp-card{background:var(--g50);border:1.5px solid var(--g200);border-radius:10px;padding:14px 16px;}
+.cmp-card-err{background:#fff5f5;border-color:#FCA5A5;}
+.cmp-label{font-size:11px;font-weight:700;color:var(--g400);letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;}
+.cmp-row{display:flex;align-items:center;gap:10px;}
+.cmp-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.cmp-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.04em;}
+.base-tag{background:var(--blue-lt);color:var(--blue);}
+.meas-tag{background:var(--teal-lt);color:var(--teal);}
+.cmp-val{font-size:22px;font-weight:800;color:var(--g800);line-height:1.1;}
+.cmp-val.no-data{color:var(--g400);font-size:18px;}
+.cmp-unit{font-size:11px;font-weight:500;color:var(--g400);margin-left:2px;}
+.cmp-arrow{font-size:18px;font-weight:800;flex-shrink:0;color:var(--teal);}
+.cmp-card-err .cmp-arrow{color:var(--red);}
+.cmp-diff{margin-top:10px;text-align:center;font-size:12px;font-weight:700;padding:4px 0;border-radius:6px;}
+.cmp-diff-ok{background:var(--teal-lt);color:var(--teal);}
+.cmp-diff-err{background:var(--red-lt);color:var(--red);}
+
+/* SEARCH BAR */
+.search-bar{display:flex;align-items:center;gap:8px;background:white;border:1px solid var(--g200);border-radius:10px;padding:8px 12px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.sb-input-wrap{flex:1;display:flex;align-items:center;gap:8px;border:1.5px solid var(--g200);border-radius:7px;padding:0 10px;height:36px;background:var(--g50);transition:border-color .15s;}
+.sb-input-wrap:focus-within{border-color:var(--blue);background:white;}
+.sb-icon{width:16px;height:16px;flex-shrink:0;}
+.sb-input{flex:1;border:none;outline:none;font-family:inherit;font-size:15px;color:var(--g800);background:transparent;}
+.sb-input::placeholder{color:var(--g400);}
+.sb-select{height:38px;font-size:14px;padding:0 10px;border:1.5px solid var(--g200);border-radius:7px;font-family:inherit;color:var(--g800);background:var(--g50);outline:none;cursor:pointer;}
+.sb-select:focus{border-color:var(--blue);background:white;}
+.sb-btn{height:38px;padding:0 18px;font-size:14px;border-radius:7px;border:1.5px solid var(--g200);background:var(--g50);color:var(--g600);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;white-space:nowrap;font-weight:500;transition:all .15s;}
+.sb-btn:hover{background:var(--g100);}
+
+/* FORM PANEL */
+.form-panel{background:white;border:1px solid var(--g200);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;margin-bottom:12px;display:none;}
+.form-panel.open{display:block;}
+.fp-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--g50);border-bottom:1px solid var(--g200);}
+.fp-title{font-size:15px;font-weight:600;color:var(--g800);}
+.fp-close{background:none;border:none;color:var(--g400);font-size:20px;cursor:pointer;}
+.fp-body{padding:18px;}
+.fp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px;}
+.fp-field{display:flex;flex-direction:column;gap:5px;}
+.fp-field label{font-size:14px;color:var(--g600);font-weight:500;}
+.fp-field input,.fp-field select,.fp-field textarea{height:38px;font-size:15px;padding:0 12px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);}
+.fp-field textarea{height:66px;padding:9px 12px;resize:vertical;}
+.fp-field input:focus,.fp-field select:focus,.fp-field textarea:focus{border-color:var(--blue);background:white;}
+.fp-field input.err{border-color:#F87171;}
+.fp-field .emsg{font-size:12px;color:var(--red);display:none;}
+.fp-field .emsg.show{display:block;}
+.cbm-preview{display:flex;gap:20px;align-items:center;flex-wrap:wrap;background:var(--blue-lt);border:1px solid #BFCFF7;border-radius:8px;padding:10px 16px;margin-bottom:12px;}
+.cpv-item .l{font-size:11px;color:#3B5BAF;margin-bottom:1px;}
+.cpv-item .v{font-size:18px;font-weight:800;color:var(--navy);}
+.cpv-item .u{font-size:11px;color:var(--g400);}
+.fp-actions{display:flex;gap:8px;}
+.fp-btn{height:38px;padding:0 20px;font-size:15px;border-radius:6px;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:500;}
+.fp-btn.save{background:var(--blue);color:white;border:none;}
+.fp-btn.save:hover{background:#1647c0;}
+.fp-btn.cancel{background:var(--g50);color:var(--g600);border:1px solid var(--g200);}
+.fp-btn.cancel:hover{background:var(--g100);}
+.fp-btn.del{background:var(--red-lt);color:var(--red);border:1px solid #FCA5A5;display:none;}
+.fp-btn.del:hover{background:#FEE2E2;}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--g200);box-shadow:0 1px 4px rgba(0,0,0,.06);}
+table{width:100%;border-collapse:collapse;font-size:15px;white-space:nowrap;}
+thead tr{background:var(--g100);}
+th{padding:12px 14px;text-align:center;color:var(--g600);font-size:14px;font-weight:600;user-select:none;border-bottom:1px solid var(--g200);}
+td{padding:11px 14px;color:var(--g800);border-bottom:1px solid var(--g100);text-align:center;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--g50);}
+tr.editing td{background:#EBF0FD!important;}
+tr.row-err td{background:#FFF8F8;} tr.row-warn td{background:#FFFBF2;} tr.row-ok td{background:#F0FDF8;}
+tr.row-err:hover td{background:#FEE2E2;} tr.row-warn:hover td{background:#FEF3C7;}
+.cbm-pill{display:inline-block;background:var(--blue-lt);color:var(--blue);border:1px solid #BFCFF7;border-radius:5px;padding:3px 10px;font-size:13px;font-weight:600;}
+.sp{display:inline-block;border-radius:4px;padding:3px 10px;font-size:14px;font-weight:600;}
+.sp-ok{background:var(--teal-lt);color:var(--teal);}
+.sp-warn{background:var(--amber-lt);color:var(--amber);}
+.sp-err{background:var(--red-lt);color:var(--red);}
+.cd{display:inline-flex;align-items:center;gap:4px;}
+.cd-dot{width:9px;height:9px;border-radius:50%;border:1px solid var(--g200);flex-shrink:0;}
+.miss{color:var(--g400);font-style:italic;}
+.act-btn{width:26px;height:26px;border-radius:5px;border:1px solid var(--g200);background:var(--g50);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;}
+.act-btn:hover{background:var(--g100);}
+.act-btn.del:hover{background:var(--red-lt);color:var(--red);border-color:#FCA5A5;}
+.tbl-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--g50);border-top:1px solid var(--g200);border-radius:0 0 10px 10px;font-size:14px;color:var(--g400);}
+
+/* DIFF */
+.diff-up{color:var(--red);font-weight:600;}
+.diff-dn{color:var(--teal);font-weight:600;}
+.diff-ok{color:var(--g400);}
+
+/* TOLERANCE BAR */
+.tol-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:white;border:1px solid var(--g200);border-radius:10px;padding:10px 16px;margin-bottom:12px;font-size:14px;color:var(--g600);box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.tol-bar label{font-size:14px;font-weight:600;white-space:nowrap;}
+.tol-bar input{height:32px;width:75px;font-size:14px;padding:0 9px;border:1px solid var(--g200);border-radius:5px;font-family:inherit;outline:none;}
+
+/* INFO BOX */
+.info-box{background:var(--blue-lt);border:1px solid #BFCFF7;border-radius:8px;padding:10px 16px;font-size:12px;color:#3B5BAF;margin-bottom:12px;}
+
+/* EMPTY */
+.empty-state{text-align:center;padding:2.5rem;color:var(--g400);}
+.empty-state .ei{font-size:40px;margin-bottom:10px;}
+.empty-state p{font-size:15px;}
+
+/* FOOTER */
+footer{background:var(--g100);border-top:1px solid var(--g200);color:var(--g400);padding:1rem 2rem;font-size:11px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
+footer strong{color:var(--g600);}
+</style>
+</head>
+<body>
+
+<nav class="no-print">
+  <div class="nav-left">
+    <div class="nav-logo">포장박스 CBM & 중량 관리</div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchTab('compare')">비교 점검</div>
+      <div class="nav-tab" onclick="switchTab('meas')">실측 입력</div>
+      <div class="nav-tab" onclick="switchTab('base')">기준 데이터</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <span class="sync-chip warn" id="syncStatus">시트 연결 대기</span>
+    <button class="nav-btn" onclick="loadCloudData({manual:true})">시트 동기화</button>
+    <button class="nav-btn" onclick="applyWeekFilter()" style="color:var(--blue);">↺ 갱신</button>
+    <button class="nav-btn" onclick="window.print()">인쇄</button>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div class="hero-title">
+        <h1>포장박스 <em>CBM & 중량</em> 비교</h1>
+      </div>
+      <div class="hero-meta">
+        <span class="chip" id="hdr-date">—</span>
+      </div>
+    </div>
+    <div class="hero-kpis">
+      <div class="hkpi"><div class="l">총 품목 <span class="s">(수량)</span></div><div class="n blue" id="kpi-total">0</div></div>
+      <div class="hkpi"><div class="l">정상 품목 <span class="s">(수량)</span></div><div class="n green" id="kpi-ok">0</div></div>
+      <div class="hkpi"><div class="l">오류 품목 <span class="s">(수량)</span></div><div class="n red" id="kpi-err">0</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="js-err-msg" style="display:none;background:#991B1B;color:white;font-size:12px;padding:8px 16px;margin:8px 2rem;border-radius:6px;"></div>
+<div id="detailModal" style="display:none;"></div>
+<div class="wrapper">
+
+<!-- ══ 기준 데이터 ══ -->
+<div class="pane" id="pane-base">
+  <div class="form-panel open" id="baseFormPanel">
+    <div class="fp-hdr"><span class="fp-title" id="bfpTitle">기준 데이터 입력</span></div>
+    <div class="fp-body">
+      <div class="fp-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="fp-field"><label>제품코드 *</label><input id="bf_code" placeholder="BOX-001" oninput="bLP()"><span class="emsg" id="be_code">필수 항목</span></div>
+        <div class="fp-field"><label>색상</label><input id="bf_color" placeholder="흰색" oninput="bLP()"></div>
+        <div class="fp-field"><label>제품명칭 *</label><input id="bf_name" placeholder="소형 배송박스"><span class="emsg" id="be_name">필수 항목</span></div>
+      </div>
+      <div class="fp-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="fp-field"><label>가로(mm) *</label><input id="bf_w" type="number" min="1" placeholder="300" oninput="bLP()"><span class="emsg" id="be_w">0 초과 입력</span></div>
+        <div class="fp-field"><label>세로(mm) *</label><input id="bf_d" type="number" min="1" placeholder="200" oninput="bLP()"><span class="emsg" id="be_d">0 초과 입력</span></div>
+        <div class="fp-field"><label>높이(mm) *</label><input id="bf_h" type="number" min="1" placeholder="150" oninput="bLP()"><span class="emsg" id="be_h">0 초과 입력</span></div>
+        <div class="fp-field"><label>중량(kg) *</label><input id="bf_kg" type="number" min="0.001" step="0.001" placeholder="0.500" oninput="bLP()"><span class="emsg" id="be_kg">0 초과 입력</span></div>
+      </div>
+      <div class="cbm-preview" id="bPrev" style="display:none;">
+        <div class="cpv-item"><div class="l">계산된 CBM</div><div><span class="v" id="bpv_cbm">—</span> <span class="u">m³</span></div></div>
+        <div class="cpv-item"><div class="l">색상</div><div id="bpv_col"></div></div>
+      </div>
+      <div class="fp-actions">
+        <button class="fp-btn save" onclick="saveBase()"><span id="bBtnTxt">저장</span></button>
+        <button class="fp-btn cancel" onclick="resetBaseForm()">초기화</button>
+        <button class="fp-btn del" id="bDelBtn" onclick="deleteBaseEdit()">삭제</button>
+        <label class="fp-btn cancel" style="cursor:pointer;">📂 엑셀 가져오기<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBaseExcel(event)"></label>
+        <button type="button" class="fp-btn cancel" onclick="downloadBaseExcel()">⬇ 엑셀 내려받기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>제품코드</th><th>색상</th><th>제품명칭</th>
+        <th>가로(mm)</th><th>세로(mm)</th><th>높이(mm)</th><th>CBM(m³)</th><th>중량(kg)</th><th>비고</th>
+      </tr></thead>
+      <tbody id="baseTb"></tbody>
+    </table>
+    <div class="tbl-foot"><span id="baseInfo"></span><span id="baseCount"></span></div>
+  </div>
+</div>
+
+<!-- ══ 실측 입력 ══ -->
+<div class="pane" id="pane-meas">
+  <div class="form-panel open">
+    <div class="fp-hdr"><span class="fp-title">실측 데이터 입력</span></div>
+    <div class="fp-body">
+      <div class="fp-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="fp-field"><label>제품코드 *</label>
+          <input id="mf_code" type="text" placeholder="제품코드 입력..." oninput="clearE('mf_code','me_code');mLP();" style="text-transform:uppercase;">
+          <span class="emsg" id="me_code">제품코드를 입력하세요</span>
+        </div>
+        <div class="fp-field"><label>측정일 *</label><input id="mf_date" type="date"><span class="emsg" id="me_date">날짜를 입력하세요</span></div>
+        <div class="fp-field"><label>측정자</label>
+          <select id="mf_by">
+            <option value="">-- 선택 --</option>
+            <option value="김기원">김기원</option>
+            <option value="정일성">정일성</option>
+            <option value="배훈기">배훈기</option>
+          </select>
+        </div>
+      </div>
+      <div class="fp-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="fp-field"><label>가로(mm) *</label><input id="mf_w" type="number" min="1" placeholder="300" oninput="mLP()"><span class="emsg" id="me_w">0 초과 입력</span></div>
+        <div class="fp-field"><label>세로(mm) *</label><input id="mf_d" type="number" min="1" placeholder="200" oninput="mLP()"><span class="emsg" id="me_d">0 초과 입력</span></div>
+        <div class="fp-field"><label>높이(mm) *</label><input id="mf_h" type="number" min="1" placeholder="150" oninput="mLP()"><span class="emsg" id="me_h">0 초과 입력</span></div>
+        <div class="fp-field"><label>중량(kg) *</label><input id="mf_kg" type="number" min="0.001" step="0.001" placeholder="0.500" oninput="mLP()"><span class="emsg" id="me_kg">0 초과 입력</span></div>
+      </div>
+      <div id="mPrevWrap" style="display:none;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--g400);margin-bottom:6px;">기준 vs 실측 미리보기</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>구분</th><th>가로(mm)</th><th>세로(mm)</th><th>높이(mm)</th><th>CBM(m³)</th><th>중량(kg)</th></tr></thead>
+            <tbody id="mPrevTb"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="fp-actions">
+        <button class="fp-btn save" onclick="saveMeas()">저장</button>
+        <button class="fp-btn cancel" onclick="resetMeasForm()">초기화</button>
+        <label class="fp-btn cancel" style="cursor:pointer;">📂 엑셀 가져오기<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importMeasExcel(event)"></label>
+        <button type="button" class="fp-btn cancel" onclick="downloadMeasExcel()">⬇ 엑셀 내려받기</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap" style="margin-top:12px;">
+    <table>
+      <thead><tr>
+        <th>측정일</th><th>제품코드</th><th>색상</th><th>제품명칭</th>
+        <th>가로(mm)</th><th>세로(mm)</th><th>높이(mm)</th>
+        <th>CBM(m³)</th><th>중량(kg)</th><th>상태</th><th>측정자</th><th>비고</th>
+      </tr></thead>
+      <tbody id="measTb"></tbody>
+    </table>
+    <div class="tbl-foot"><span id="measInfo"></span><span id="measCount"></span></div>
+  </div>
+
+</div>
+
+<!-- ══ 비교 점검 ══ -->
+<div class="pane active" id="pane-compare">
+
+  <div class="msb" style="flex-wrap:nowrap;margin-bottom:8px;">
+    <span class="msb-label" style="white-space:nowrap;">제품코드</span>
+    <div class="sb-input-wrap msb-input-wrap" style="width:130px;flex:none;">
+      <svg class="sb-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="#94A3B8" stroke-width="1.6"/><path d="M13 13L17 17" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="cmpQ" class="sb-input" placeholder="코드 입력..." oninput="renderCompare()">
+    </div>
+    <div class="msb-div" style="height:22px;"></div>
+    <span class="msb-label" style="white-space:nowrap;">실측일</span>
+    <div class="msb-dates" style="flex-shrink:0;">
+      <input type="date" id="cmpFrom" onchange="renderCompare()">
+      <span class="msb-tilde">~</span>
+      <input type="date" id="cmpTo" onchange="renderCompare()">
+    </div>
+    <div style="flex:1;min-width:8px;"></div>
+    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+      <button type="button" class="msb-chip" id="clbl_all" onclick="setCmpStatus('all')">전체</button>
+      <button type="button" class="msb-chip" id="clbl_ok"  onclick="setCmpStatus('ok')">정상</button>
+      <button type="button" class="msb-chip" id="clbl_err" onclick="setCmpStatus('err')">오류</button>
+    </div>
+    <div class="msb-div" style="height:22px;"></div>
+    <button type="button" class="tb-btn" style="height:32px;flex-shrink:0;" onclick="exportCompareExcel()">⬇ 엑셀 내려받기</button>
+  </div>
+  <div class="tol-bar">
+    <label>허용 오차(%)</label>
+    <input id="tol" type="number" value="5" min="0" step="0.5" onchange="renderCompare()">
+    <span style="color:var(--g400);font-size:11px;">이 범위 초과 시 오류 표시</span>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;font-size:11px;">
+      <span class="sp sp-ok">정상</span> 허용 이내
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <span class="sp sp-err">오류</span> 허용 초과
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>제품코드</th><th>색상</th><th>제품명칭</th>
+        <th>가로 차이</th><th>세로 차이</th><th>높이 차이</th>
+        <th>CBM 차이</th><th>중량 차이</th><th>판정</th><th>측정일</th>
+      </tr></thead>
+      <tbody id="compareTb"></tbody>
+    </table>
+    <div class="tbl-foot"><span id="compareInfo"></span></div>
+  </div>
+</div>
+
+
+</div>
+
+<footer style="justify-content:flex-end;">충주공장 품질보증팀</footer>
+<span id="footInfo" style="display:none;"></span>
+
+<script>
+/* ── STORAGE WRAPPER (data: URL 등 localStorage 차단 환경 대응) ── */
+const _mem = {};
+const store = {
+  get(k)   { try { return localStorage.getItem(k); }    catch(e){ return _mem[k]||null; } },
+  set(k,v) { try { localStorage.setItem(k,v); }          catch(e){ _mem[k]=v; } },
+  del(k)   { try { localStorage.removeItem(k); }         catch(e){ delete _mem[k]; } }
+};
+
+/* ── DATA ── */
+
+const GOOGLE_SHEET_ID = '1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZPlYI';
+const APPS_SCRIPT_WEBAPP_URL = ''; // 쓰기 동기화가 필요하면 google-apps-script.gs 배포 URL을 입력
+const SYNC_POLL_MS = 60000;
+let _syncLoading = false;
+let _syncTimer = null;
+let _pushTimer = null;
+
+const DEMO_BASE = [{"id":1781758854473,"code":"CDB0082","color":"RCN","name":"2단 도어","w":795,"d":470,"h":70,"kg":6,"createdAt":"2026-06-18"},{"id":1781758899298,"code":"CEC0083S","color":"WW","name":"3단 상부선반","w":925,"d":470,"h":60,"kg":5,"createdAt":"2026-06-18"},{"id":1781758929951,"code":"FGP0302","color":"RCNBGM","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"},{"id":1781758950613,"code":"FGP0302","color":"WW","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"}];
+const DEMO_MEAS = [{"id":1781759248597,"code":"CDB0082","baseId":1781758854473,"date":"2026-06-17","by":"배훈기","w":755,"d":435,"h":40,"kg":6.2,"memo":""},{"id":1781759280179,"code":"CEC0083S","baseId":1781758899298,"date":"2026-06-17","by":"배훈기","w":885,"d":440,"h":40,"kg":5.6,"memo":""},{"id":1781759297786,"code":"FGP0302","baseId":1781758929951,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""},{"id":1781759315793,"code":"FGP0302","baseId":1781758950613,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""}];
+
+let baseItems, measurements;
+try { baseItems    = JSON.parse(store.get('cbm_base') || 'null') || [...DEMO_BASE]; } catch(e){ baseItems=[...DEMO_BASE]; store.del('cbm_base'); }
+try { measurements = JSON.parse(store.get('cbm_meas') || 'null') || [...DEMO_MEAS]; } catch(e){ measurements=[...DEMO_MEAS]; store.del('cbm_meas'); }
+let baseEditId  = null;
+let measEditId  = null;
+let curStatus   = 'all';
+let cmpStatusVal = 'all';
+
+function persistBase() { store.set('cbm_base', JSON.stringify(baseItems)); queueCloudSave(); }
+function persistMeas() { store.set('cbm_meas', JSON.stringify(measurements)); queueCloudSave(); }
+function setSyncStatus(text, state='warn'){
+  const el=document.getElementById('syncStatus');
+  if(!el) return;
+  el.textContent=text;
+  el.className='sync-chip '+state;
+}
+function csvUrl(sheet){
+  return `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}&ts=${Date.now()}`;
+}
+function parseCSV(text){
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i], nx=text[i+1];
+    if(q){
+      if(ch==='"'&&nx==='"'){cell+='"';i++;}
+      else if(ch==='"'){q=false;}
+      else cell+=ch;
+    }else if(ch==='"') q=true;
+    else if(ch===','){row.push(cell);cell='';}
+    else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+    else if(ch!=='\r') cell+=ch;
+  }
+  if(cell||row.length){row.push(cell);rows.push(row);}
+  return rows.filter(r=>r.some(v=>String(v).trim()!==''));
+}
+function rowsToObjects(rows){
+  if(rows.length<2) return [];
+  const headers=rows[0].map(h=>String(h).trim());
+  return rows.slice(1).map(r=>{
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=r[i]??'');
+    return obj;
+  });
+}
+function toNumber(v){ const n=parseFloat(String(v).replace(/,/g,'')); return Number.isFinite(n)?n:0; }
+function normalizeBaseRows(rows){
+  return rowsToObjects(rows).map((r,i)=>({
+    id: toNumber(r.id)||Date.now()+i,
+    code: String(r.code||'').trim(),
+    color: String(r.color||'').trim(),
+    name: String(r.name||'').trim(),
+    w: toNumber(r.w), d: toNumber(r.d), h: toNumber(r.h), kg: toNumber(r.kg),
+    createdAt: String(r.createdAt||new Date().toISOString().slice(0,10)).trim()
+  })).filter(r=>r.code);
+}
+function normalizeMeasurementRows(rows){
+  return rowsToObjects(rows).map((r,i)=>({
+    id: toNumber(r.id)||Date.now()+i,
+    code: String(r.code||'').trim(),
+    baseId: toNumber(r.baseId)||null,
+    date: String(r.date||new Date().toISOString().slice(0,10)).trim(),
+    by: String(r.by||'').trim(),
+    w: toNumber(r.w), d: toNumber(r.d), h: toNumber(r.h), kg: toNumber(r.kg),
+    memo: String(r.memo||'').trim()
+  })).filter(r=>r.code);
+}
+function renderAll(){
+  renderKPI(); renderCompare(); renderBase(); renderMeas(); updateCodeSel();
+}
+async function loadCloudData(opts={}){
+  if(_syncLoading || !GOOGLE_SHEET_ID) return;
+  _syncLoading=true;
+  setSyncStatus('시트 읽는 중', 'warn');
+  try{
+    let baseRows, measRows;
+    if(APPS_SCRIPT_WEBAPP_URL){
+      const res=await fetch(`${APPS_SCRIPT_WEBAPP_URL}?action=load&ts=${Date.now()}`);
+      if(!res.ok) throw new Error(`Apps Script ${res.status}`);
+      const json=await res.json();
+      baseRows=[['id','code','color','name','w','d','h','kg','createdAt'],...(json.base||[]).map(x=>[x.id,x.code,x.color,x.name,x.w,x.d,x.h,x.kg,x.createdAt])];
+      measRows=[['id','code','baseId','date','by','w','d','h','kg','memo'],...(json.measurements||[]).map(x=>[x.id,x.code,x.baseId,x.date,x.by,x.w,x.d,x.h,x.kg,x.memo])];
+    }else{
+      const [baseRes, measRes]=await Promise.all([fetch(csvUrl('BaseData')), fetch(csvUrl('Measurements'))]);
+      if(!baseRes.ok||!measRes.ok) throw new Error('Google Sheet CSV 접근 권한을 확인해 주세요.');
+      baseRows=parseCSV(await baseRes.text());
+      measRows=parseCSV(await measRes.text());
+    }
+    const nextBase=normalizeBaseRows(baseRows);
+    const nextMeas=normalizeMeasurementRows(measRows);
+    if(nextBase.length) baseItems=nextBase;
+    measurements=nextMeas;
+    store.set('cbm_base', JSON.stringify(baseItems));
+    store.set('cbm_meas', JSON.stringify(measurements));
+    renderAll();
+    setSyncStatus(`시트 동기화 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`, 'ok');
+  }catch(err){
+    if(opts.manual) alert('시트 동기화 실패: '+err.message);
+    setSyncStatus(APPS_SCRIPT_WEBAPP_URL?'동기화 실패':'시트 권한 필요', 'err');
+    console.warn(err);
+  }finally{
+    _syncLoading=false;
+  }
+}
+function queueCloudSave(){
+  if(_syncLoading || !APPS_SCRIPT_WEBAPP_URL) return;
+  clearTimeout(_pushTimer);
+  _pushTimer=setTimeout(saveCloudData, 700);
+}
+async function saveCloudData(){
+  if(!APPS_SCRIPT_WEBAPP_URL) return;
+  setSyncStatus('시트 저장 중', 'warn');
+  try{
+    const res=await fetch(APPS_SCRIPT_WEBAPP_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({base:baseItems,measurements})
+    });
+    if(!res.ok) throw new Error(`Apps Script ${res.status}`);
+    setSyncStatus('시트 저장 완료', 'ok');
+  }catch(err){
+    setSyncStatus('저장 실패', 'err');
+    console.warn(err);
+  }
+}
+function startCloudSync(){
+  if(!GOOGLE_SHEET_ID&&!APPS_SCRIPT_WEBAPP_URL) return;
+  loadCloudData();
+  clearInterval(_syncTimer);
+  _syncTimer=setInterval(()=>loadCloudData(), SYNC_POLL_MS);
+}
+function calcCBM(w,d,h){ return (w/1000)*(d/1000)*(h/1000); }
+function isErr(i){ return !i.code||!i.name||i.w<=0||i.d<=0||i.h<=0||i.kg<=0; }
+
+const CMAP = {'흰색':'#f0f0f0','화이트':'#f0f0f0','검정':'#333','블랙':'#333','빨강':'#e24b4a','레드':'#e24b4a','파랑':'#378add','블루':'#378add','초록':'#639922','그린':'#639922','노랑':'#ef9f27','갈색':'#854f0b','베이지':'#faeeda','회색':'#888780','그레이':'#888780','핑크':'#d4537e','은색':'#b4b2a9'};
+function colorHex(c){
+  if(!c) return '#ccc';
+  const l=c.toLowerCase();
+  for(const k in CMAP) if(l.includes(k)) return CMAP[k];
+  if(/^#[0-9a-f]{3,6}$/i.test(c)) return c;
+  return '#b4b2a9';
+}
+
+function emptyRow(n){return `<tr><td colspan="${n}" class="empty-state"><div class="ei">📦</div><p>데이터가 없습니다.</p></td></tr>`;}
+
+function showErr(fid,eid){
+  const f=document.getElementById(fid); if(f) f.classList.add('err');
+  const e=document.getElementById(eid); if(e) e.classList.add('show');
+}
+function clearE(fid,eid){
+  const f=document.getElementById(fid); if(f) f.classList.remove('err');
+  const e=document.getElementById(eid); if(e) e.classList.remove('show');
+}
+
+/* ── KPI ── */
+function renderKPI(){
+  const tol=parseFloat((document.getElementById('tol')||{value:'5'}).value)||5;
+  let total=0, ok=0, err=0;
+  baseItems.forEach(base=>{
+    const mList=measurements.filter(m=>m.code===base.code);
+    if(!mList.length) return;
+    total++;
+    const m=mList.sort((a,b)=>b.id-a.id)[0];
+    const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
+    const maxP=Math.max(
+      base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
+      base.d>0?Math.abs((m.d-base.d)/base.d*100):0,
+      base.h>0?Math.abs((m.h-base.h)/base.h*100):0,
+      base.kg>0?Math.abs((m.kg-base.kg)/base.kg*100):0,
+      bC>0?Math.abs((mC-bC)/bC*100):0
+    );
+    if(maxP<=tol) ok++; else err++;
+  });
+  document.getElementById('kpi-total').textContent = total;
+  document.getElementById('kpi-ok').textContent    = ok;
+  document.getElementById('kpi-err').textContent   = err;
+  const d=new Date();
+  document.getElementById('hdr-date').textContent  = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('footInfo').textContent  = `기준 ${baseItems.length}건 · 실측 ${measurements.length}건`;
+}
+
+/* ── TAB ── */
+function switchTab(t){
+  document.querySelectorAll('.nav-tab').forEach(el=>{
+    const m=el.getAttribute('onclick').match(/'([^']+)'/);
+    el.classList.toggle('active', m&&m[1]===t);
+  });
+  document.querySelectorAll('.pane').forEach(el=>{
+    el.classList.toggle('active', el.id==='pane-'+t);
+  });
+  if(t==='base')    renderBase();
+  if(t==='meas')    {updateCodeSel();}
+  if(t==='compare') renderCompare();
+}
+
+/* ── CMP FILTER ── */
+function setCmpStatus(s){
+  cmpStatusVal=s;
+  const colors={all:'#1A56DB',ok:'#0A7C59',err:'#991B1B'};
+  ['all','ok','err'].forEach(k=>{
+    const lbl=document.getElementById('clbl_'+k);
+    if(!lbl) return;
+    if(k===s){lbl.style.background=colors[k];lbl.style.color='white';lbl.style.borderColor=colors[k];}
+    else{lbl.style.background='';lbl.style.color='';lbl.style.borderColor='';}
+  });
+  renderCompare();
+}
+function resetCmpFilters(){
+  document.getElementById('cmpQ').value='';
+  setCmpStatus('all');
+  applyWeekFilter();
+}
+
+/* ── BASE TAB ── */
+function setStatus(s){
+  curStatus=s;
+  const colors={all:'#1A56DB',ok:'#0A7C59',err:'#991B1B'};
+  ['all','ok','err'].forEach(k=>{
+    const lbl=document.getElementById('lbl_'+k);
+    if(!lbl) return;
+    if(k===s){ lbl.style.background=colors[k];lbl.style.color='white';lbl.style.borderColor=colors[k]; }
+    else      { lbl.style.background='';lbl.style.color='';lbl.style.borderColor=''; }
+  });
+  renderBase();
+}
+function resetFilters(){
+  document.getElementById('rq').value='';
+  document.getElementById('rd_from').value='';
+  document.getElementById('rd_to').value='';
+  setStatus('all');
+}
+function renderBase(){
+  const q='', from='', to='';
+  let list=baseItems.filter(i=>{
+    if(q&&!i.code.toLowerCase().includes(q)) return false;
+    const dt=i.createdAt||'';
+    if(from&&dt&&dt<from) return false;
+    if(to&&dt&&dt>to) return false;
+    if(curStatus==='ok')  return !isErr(i);
+    if(curStatus==='err') return isErr(i);
+    return true;
+  });
+  const hasF=q||from||to||curStatus!=='all';
+  const bfoot=document.getElementById('baseFoot'); if(bfoot) bfoot.textContent=hasF?`검색 결과 ${list.length}건`:'';
+  document.getElementById('baseTb').innerHTML=list.length?list.map(i=>{
+    const c=calcCBM(i.w,i.d,i.h), hex=colorHex(i.color), err=isErr(i);
+    return`<tr class="${i.id===baseEditId?'editing':''} ${err?'row-err':''} clickable" ondblclick="showDetail('${i.code}','${i.id}')" title="더블클릭: 비교 상세보기">
+      <td style="font-weight:600;cursor:pointer;">${i.code||'<span class="miss">없음</span>'}</td>
+      <td>${i.color||'<span class="miss">—</span>'}</td>
+      <td>${i.name||'<span class="miss">없음</span>'}</td>
+      <td>${i.w}</td><td>${i.d}</td><td>${i.h}</td>
+      <td><span class="cbm-pill">${c.toFixed(3)}</span></td>
+      <td>${i.kg.toFixed(1)}</td>
+      <td><button class="act-btn" onclick="openBaseForm(${i.id})" title="수정">✎</button> <button class="act-btn del" onclick="delBase(${i.id})" title="삭제">✕</button></td>
+    </tr>`;
+  }).join(''):emptyRow(11);
+  document.getElementById('baseInfo').textContent=`${list.length}건`;
+  document.getElementById('baseCount').textContent=`전체 ${baseItems.length}건`;
+}
+
+function openBaseForm(id){
+  baseEditId=id;
+  if(id!==null){
+    const it=baseItems.find(i=>i.id===id); if(!it) return;
+    document.getElementById('bf_code').value=it.code;
+    document.getElementById('bf_color').value=it.color||'';
+    document.getElementById('bf_name').value=it.name;
+    document.getElementById('bf_w').value=it.w;
+    document.getElementById('bf_d').value=it.d;
+    document.getElementById('bf_h').value=it.h;
+    document.getElementById('bf_kg').value=it.kg;
+    document.getElementById('bfpTitle').textContent='✎ 항목 수정';
+    document.getElementById('bBtnTxt').textContent='저장';
+    document.getElementById('bDelBtn').style.display='flex';
+    bLP();
+  } else {
+    ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('bfpTitle').textContent='기준 데이터 입력';
+    document.getElementById('bBtnTxt').textContent='저장';
+    document.getElementById('bDelBtn').style.display='none';
+    document.getElementById('bPrev').style.display='none';
+  }
+}
+function closeBaseForm(){baseEditId=null;renderBase();}
+function resetBaseForm(){
+  baseEditId=null;
+  ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(x=>{document.getElementById(x).value='';});
+  document.getElementById('bfpTitle').textContent='기준 데이터 입력';
+  document.getElementById('bBtnTxt').textContent='저장';
+  document.getElementById('bDelBtn').style.display='none';
+  document.getElementById('bPrev').style.display='none';
+}
+
+function bLP(){
+  const w=parseFloat(document.getElementById('bf_w').value);
+  const d=parseFloat(document.getElementById('bf_d').value);
+  const h=parseFloat(document.getElementById('bf_h').value);
+  const col=document.getElementById('bf_color').value.trim();
+  const prev=document.getElementById('bPrev');
+  if(w>0&&d>0&&h>0){prev.style.display='flex';document.getElementById('bpv_cbm').textContent=calcCBM(w,d,h).toFixed(6);}
+  else prev.style.display='none';
+  const hex=colorHex(col);
+  document.getElementById('bpv_col').innerHTML=col
+    ?`<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;"><span style="width:12px;height:12px;border-radius:50%;background:${hex};border:1px solid #ccc;display:inline-block;"></span>${col}</span>`
+    :'<span style="font-size:11px;color:var(--g400);">미입력</span>';
+}
+
+function saveBase(){
+  const code=document.getElementById('bf_code').value.trim();
+  const color=document.getElementById('bf_color').value.trim();
+  const name=document.getElementById('bf_name').value.trim();
+  const w=parseFloat(document.getElementById('bf_w').value);
+  const d=parseFloat(document.getElementById('bf_d').value);
+  const h=parseFloat(document.getElementById('bf_h').value);
+  const kg=parseFloat(document.getElementById('bf_kg').value);
+  let ok=true;
+  if(!code){showErr('bf_code','be_code');ok=false;}
+  if(!name){showErr('bf_name','be_name');ok=false;}
+  if(!(w>0)){showErr('bf_w','be_w');ok=false;}
+  if(!(d>0)){showErr('bf_d','be_d');ok=false;}
+  if(!(h>0)){showErr('bf_h','be_h');ok=false;}
+  if(!(kg>0)){showErr('bf_kg','be_kg');ok=false;}
+  if(!ok) return;
+  if(baseEditId!==null){
+    const idx=baseItems.findIndex(i=>i.id===baseEditId);
+    if(idx!==-1) baseItems[idx]={...baseItems[idx],code,color,name,w,d,h,kg};
+  } else {
+    baseItems.push({id:Date.now(),code,color,name,w,d,h,kg,createdAt:new Date().toISOString().slice(0,10)});
+  }
+  persistBase(); resetBaseForm(); renderBase(); renderKPI(); updateCodeSel(); renderCompare();
+}
+function deleteBaseEdit(){
+  if(!confirm('삭제할까요?')) return;
+  baseItems=baseItems.filter(i=>i.id!==baseEditId);
+  persistBase(); resetBaseForm(); renderBase(); renderKPI(); updateCodeSel(); renderCompare();
+}
+function delBase(id){
+  const it=baseItems.find(i=>i.id===id);
+  if(!it||!confirm(`"${it.code}" 삭제할까요?`)) return;
+  baseItems=baseItems.filter(i=>i.id!==id);
+  if(baseEditId===id) closeBaseForm();
+  persistBase(); renderBase(); renderKPI(); updateCodeSel();
+}
+
+/* ── MEAS TAB ── */
+function updateCodeSel(){ /* select → input으로 변경, 불필요 */ }
+function onCodeSel(){ clearE('mf_code','me_code'); mLP(); }
+
+function mLP(){
+  const code=document.getElementById('mf_code').value;
+  const w=parseFloat(document.getElementById('mf_w').value);
+  const d=parseFloat(document.getElementById('mf_d').value);
+  const h=parseFloat(document.getElementById('mf_h').value);
+  const kg=parseFloat(document.getElementById('mf_kg').value);
+  const wrap=document.getElementById('mPrevWrap');
+  const base=baseItems.find(i=>i.code===code);
+  if(!base||!(w>0&&d>0&&h>0&&kg>0)){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(w,d,h);
+  function dc(bv,mv){const d=mv-bv,p=bv>0?d/bv*100:0;const cls=d>0?'diff-up':d<0?'diff-dn':'diff-ok';return`<td><span class="${cls}">${d>=0?'+':''}${d.toFixed(1)}</span> <span style="font-size:10px;color:var(--g400);">(${p>=0?'+':''}${p.toFixed(1)}%)</span></td>`;}
+  document.getElementById('mPrevTb').innerHTML=`
+    <tr><td>기준</td><td>${base.w}</td><td>${base.d}</td><td>${base.h}</td><td><span class="cbm-pill">${bC.toFixed(5)}</span></td><td>${base.kg.toFixed(3)}</td></tr>
+    <tr style="background:var(--blue-lt);"><td><strong>실측</strong></td><td><strong>${w}</strong></td><td><strong>${d}</strong></td><td><strong>${h}</strong></td><td><span class="cbm-pill">${mC.toFixed(5)}</span></td><td><strong>${kg.toFixed(3)}</strong></td></tr>
+    <tr>${dc(base.w,w)}${dc(base.d,d)}${dc(base.h,h)}${dc(base.kg,kg)}<td style="font-weight:600;color:${Math.abs((mC-bC)/bC*100)>5?'var(--red)':'var(--teal)'};">${((mC-bC)/bC*100>=0?'+':'')}${((mC-bC)/bC*100).toFixed(2)}%</td></tr>`;
+  // prepend blank first cell for 구분 column
+  const rows=document.getElementById('mPrevTb').querySelectorAll('tr');
+  rows[2].insertAdjacentHTML('afterbegin','<td style="color:var(--g400)">차이</td>');
+}
+
+function openMeasForm(id){
+  measEditId=id;
+  const m=measurements.find(x=>x.id===id); if(!m) return;
+  document.getElementById('mf_code').value=m.code;
+  document.getElementById('mf_date').value=m.date;
+  document.getElementById('mf_by').value=m.by||'';
+  document.getElementById('mf_w').value=m.w;
+  document.getElementById('mf_d').value=m.d;
+  document.getElementById('mf_h').value=m.h;
+  document.getElementById('mf_kg').value=m.kg;
+  mLP();
+  document.querySelector('#pane-meas .fp-hdr .fp-title').textContent='실측 데이터 수정';
+  window.scrollTo({top:0,behavior:'smooth'});
+  renderMeas();
+}
+function saveMeas(){
+  const code=document.getElementById('mf_code').value;
+  const date=document.getElementById('mf_date').value;
+  const by=document.getElementById('mf_by').value.trim();
+  const w=parseFloat(document.getElementById('mf_w').value);
+  const d=parseFloat(document.getElementById('mf_d').value);
+  const h=parseFloat(document.getElementById('mf_h').value);
+  const kg=parseFloat(document.getElementById('mf_kg').value);
+  const memo='';
+  let ok=true;
+  if(!code){showErr('mf_code','me_code');ok=false;}
+  if(!date){showErr('mf_date','me_date');ok=false;}
+  if(!(w>0)){showErr('mf_w','me_w');ok=false;}
+  if(!(d>0)){showErr('mf_d','me_d');ok=false;}
+  if(!(h>0)){showErr('mf_h','me_h');ok=false;}
+  if(!(kg>0)){showErr('mf_kg','me_kg');ok=false;}
+  if(!ok) return;
+  if(measEditId!==null){
+    const idx=measurements.findIndex(x=>x.id===measEditId);
+    if(idx!==-1){const baseId=baseItems.find(i=>i.code===code)?.id||measurements[idx].baseId||null;measurements[idx]={...measurements[idx],code,baseId,date,by,w,d,h,kg,memo};}
+    measEditId=null;
+  } else {
+    const baseId=baseItems.find(i=>i.code===code)?.id||null;
+    measurements.push({id:Date.now(),code,baseId,date,by,w,d,h,kg,memo});
+  }
+  persistMeas(); resetMeasForm(); renderKPI(); renderCompare(); renderMeas();
+}
+function resetMeasForm(){
+  measEditId=null;
+  ['mf_w','mf_d','mf_h','mf_kg'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('mf_code').value='';
+  document.getElementById('mf_by').value='';
+  const t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력';
+  document.getElementById('mf_date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('mPrevWrap').style.display='none';
+}
+function delMeas(id){
+  if(!confirm('이 실측 기록을 삭제할까요?')) return;
+  measurements=measurements.filter(m=>m.id!==id);
+  persistMeas(); renderKPI(); renderCompare(); renderMeas();
+}
+function renderMeas(){
+  const tb=document.getElementById('measTb');
+  if(!tb) return;
+  const baseIdx=m=>{
+    if(m.baseId){const i=baseItems.findIndex(x=>x.id===m.baseId);if(i>=0)return i;}
+    return baseItems.findIndex(x=>x.code===m.code);
+  };
+  const sorted=[...measurements].sort((a,b)=>baseIdx(a)-baseIdx(b));
+  tb.innerHTML=sorted.length?sorted.map(m=>{
+    const base=baseItems.find(i=>i.id===m.baseId)||baseItems.find(i=>i.code===m.code)||{};
+    const c=calcCBM(m.w,m.d,m.h);
+    return`<tr class="${m.id===measEditId?'editing':''}">
+      <td style="color:var(--g400);font-size:12px;">${m.date}</td>
+      <td style="font-weight:600;">${m.code}</td>
+      <td>${base.color||'—'}</td>
+      <td>${base.name||'—'}</td>
+      <td>${m.w}</td><td>${m.d}</td><td>${m.h}</td>
+      <td><span class="cbm-pill">${c.toFixed(3)}</span></td>
+      <td>${m.kg.toFixed(1)}</td>
+      <td>${(()=>{
+        const tol=parseFloat(document.getElementById('tol')?.value)||5;
+        const bC=calcCBM(base.w||0,base.d||0,base.h||0);
+        const pcts=[base.w,base.d,base.h,bC,base.kg].map((bv,i)=>{
+          const mv=[m.w,m.d,m.h,c,m.kg][i];
+          return bv>0?Math.abs((mv-bv)/bv*100):0;
+        });
+        const maxP=Math.max(...pcts);
+        return base.code?maxP<=tol?'<span class="sp sp-ok">정상</span>':'<span class="sp sp-err">오류</span>':'<span class="sp" style="color:var(--g400)">—</span>';
+      })()}</td>
+      <td>${m.by||'—'}</td>
+      <td><button class="act-btn" onclick="openMeasForm(${m.id})" title="수정">✎</button> <button class="act-btn del" onclick="delMeas(${m.id})" title="삭제">✕</button></td>
+    </tr>`;
+  }).join(''):`<tr><td colspan="12" class="empty-state"><div class="ei">📋</div><p>실측 데이터가 없습니다.</p></td></tr>`;
+  const info=document.getElementById('measInfo');
+  const cnt=document.getElementById('measCount');
+  if(info) info.textContent=`${sorted.length}건`;
+  if(cnt) cnt.textContent=`전체 ${measurements.length}건`;
+}
+
+/* ── COMPARE TAB ── */
+function renderCompare(){
+  const tol=parseFloat(document.getElementById('tol').value)||5;
+  const q=(document.getElementById('cmpQ')||{value:''}).value.toLowerCase();
+  const from=(document.getElementById('cmpFrom')||{value:''}).value;
+  const to=(document.getElementById('cmpTo')||{value:''}).value;
+  const rows=[];
+  baseItems.forEach(base=>{
+    if(q && !base.code.toLowerCase().includes(q) && !base.name.toLowerCase().includes(q)) return;
+    const mList=measurements.filter(m=>m.code===base.code).sort((a,b)=>b.id-a.id);
+    if(!mList.length) return;
+    const m=mList[0];
+    if(from && m.date < from) return;
+    if(to   && m.date > to)   return;
+    const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
+    const pcts=[
+      base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
+      base.d>0?Math.abs((m.d-base.d)/base.d*100):0,
+      base.h>0?Math.abs((m.h-base.h)/base.h*100):0,
+      base.kg>0?Math.abs((m.kg-base.kg)/base.kg*100):0,
+      bC>0?Math.abs((mC-bC)/bC*100):0,
+    ];
+    const maxP=Math.max(...pcts);
+    const cls=maxP<=tol?'row-ok':maxP<=tol*2?'row-warn':'row-err';
+    const judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':maxP<=tol*2?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
+    function dc(bv,mv,dec=0){
+      const dv=mv-bv, p=bv>0?dv/bv*100:0, ap=Math.abs(p);
+      const cl=ap<=tol?'diff-ok':'diff-up';
+      const pc=ap<=tol?'var(--g400)':'var(--red)';
+      const val=dec===0?Math.round(dv):dv.toFixed(dec);
+      return`<td class="${cl}" style="font-weight:600;">${dv>=0?'+':''}${val}<br><span style="font-size:10px;font-weight:400;color:${pc};">(${p>=0?'+':''}${p.toFixed(1)}%)</span></td>`;
+    }
+    function dcCbm(bv,mv){
+      const dv=mv-bv, p=bv>0?dv/bv*100:0, ap=Math.abs(p);
+      const cl=ap<=tol?'diff-ok':'diff-up';
+      const pc=ap<=tol?'var(--g400)':'var(--red)';
+      return`<td class="${cl}" style="font-weight:600;">${dv>=0?'+':''}${dv.toFixed(3)}<br><span style="font-size:10px;font-weight:400;color:${pc};">(${p>=0?'+':''}${p.toFixed(1)}%)</span></td>`;
+    }
+    rows.push({cls,html:`<tr class="${cls} clickable" ondblclick="showDetail('${base.code}','${base.id}')" title="더블클릭: 상세 비교">
+      <td style="font-weight:600;cursor:pointer;">${base.code}</td><td>${base.color||'—'}</td><td>${base.name}</td>
+      ${dc(base.w,m.w)}${dc(base.d,m.d)}${dc(base.h,m.h)}
+      ${dcCbm(bC,mC)}${dc(base.kg,m.kg,1)}
+      <td>${judge}</td><td style="color:var(--g400);font-size:12px;">${m.date}</td>
+    </tr>`});
+  });
+  rows.sort((a,b)=>['row-err','row-warn','row-ok'].indexOf(a.cls)-['row-err','row-warn','row-ok'].indexOf(b.cls));
+  const filtered = cmpStatusVal==='ok'  ? rows.filter(r=>r.cls==='row-ok')
+                 : cmpStatusVal==='err' ? rows.filter(r=>r.cls==='row-err'||r.cls==='row-warn')
+                 : rows;
+  document.getElementById('compareTb').innerHTML=filtered.length
+    ?filtered.map(r=>r.html).join('')
+    :`<tr><td colspan="9" class="empty-state"><div class="ei">📊</div><p>실측 데이터가 없습니다.</p></td></tr>`;
+  const e=rows.filter(r=>r.cls==='row-err').length, w=rows.filter(r=>r.cls==='row-warn').length;
+  document.getElementById('compareInfo').textContent=`${filtered.length}건 비교 · 오류 ${e}건`;
+}
+function exportCompareExcel(){
+  const tol=parseFloat(document.getElementById('tol').value)||5;
+  const from=document.getElementById('cmpFrom').value;
+  const to=document.getElementById('cmpTo').value;
+  const q=(document.getElementById('cmpQ').value||'').toLowerCase();
+  const rows=[['제품코드','색상','제품명칭','가로 차이','세로 차이','높이 차이','CBM 차이','중량 차이','판정','측정일']];
+  baseItems.forEach(base=>{
+    if(q && !base.code.toLowerCase().includes(q) && !base.name.toLowerCase().includes(q)) return;
+    const mList=measurements.filter(m=>m.code===base.code).sort((a,b)=>b.id-a.id);
+    if(!mList.length) return;
+    const m=mList[0];
+    if(from && m.date<from) return;
+    if(to   && m.date>to)   return;
+    const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
+    const maxP=Math.max(
+      base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
+      base.d>0?Math.abs((m.d-base.d)/base.d*100):0,
+      base.h>0?Math.abs((m.h-base.h)/base.h*100):0,
+      base.kg>0?Math.abs((m.kg-base.kg)/base.kg*100):0,
+      bC>0?Math.abs((mC-bC)/bC*100):0
+    );
+    const judge=maxP<=tol?'정상':maxP<=tol*2?'경고':'오류';
+    rows.push([base.code,base.color||'',base.name,Math.round(m.w-base.w),Math.round(m.d-base.d),Math.round(m.h-base.h),parseFloat((mC-bC).toFixed(3)),parseFloat((m.kg-base.kg).toFixed(1)),judge,m.date]);
+  });
+  if(rows.length<=1){alert('내려받을 데이터가 없습니다.');return;}
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:20},{wch:10},{wch:10},{wch:10},{wch:12},{wch:10},{wch:8},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'비교점검');
+  XLSX.writeFile(wb,'CBM비교점검_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+/* ── CSV ── */
+function exportAllCSV(){ exportBaseCSV(); exportMeasCSV(); }
+
+function saveAsHtml(){
+  const src = document.documentElement.outerHTML;
+  // DEMO_BASE / DEMO_MEAS 를 현재 데이터로 교체
+  const replaced = src
+    .replace(
+      /const DEMO_BASE = \[[\s\S]*?\];/,
+      'const DEMO_BASE = ' + JSON.stringify(baseItems, null, 2) + ';'
+    )
+    .replace(
+      /const DEMO_MEAS = \[[\s\S]*?\];/,
+      'const DEMO_MEAS = ' + JSON.stringify(measurements, null, 2) + ';'
+    );
+  const blob = new Blob([replaced], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cbm_dashboard_exec.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportBaseCSV(){
+  const h=['제품코드','색상','제품명칭','가로(mm)','세로(mm)','높이(mm)','CBM(m³)','중량(kg)'];
+  const r=baseItems.map(i=>[i.code,i.color||'',i.name,i.w,i.d,i.h,calcCBM(i.w,i.d,i.h).toFixed(6),i.kg.toFixed(3)]);
+  dlCSV([h,...r],'cbm_base_');
+}
+function exportMeasCSV(){
+  const h=['측정일','제품코드','제품명칭','측정자','가로(mm)','세로(mm)','높이(mm)','중량(kg)','CBM(m³)','메모'];
+  const r=measurements.map(m=>{
+    const b=baseItems.find(i=>i.code===m.code);
+    return[m.date,m.code,b?b.name:'',m.by||'',m.w,m.d,m.h,m.kg.toFixed(3),calcCBM(m.w,m.d,m.h).toFixed(6),m.memo||''];
+  });
+  dlCSV([h,...r],'cbm_meas_');
+}
+function dlCSV(data,pre){
+  const csv=data.map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=pre+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+function importCSV(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const lines=ev.target.result.replace(/\r/g,'').split('\n').filter(Boolean);
+    const imp=[];
+    for(let i=1;i<lines.length;i++){
+      const c=lines[i].split(',').map(v=>v.replace(/^"|"$/g,'').trim());
+      if(c.length<7) continue;
+      imp.push({id:Date.now()+i,code:c[0],color:c[1],name:c[2],w:parseFloat(c[3])||0,d:parseFloat(c[4])||0,h:parseFloat(c[5])||0,kg:parseFloat(c[6])||0,createdAt:c[8]||new Date().toISOString().slice(0,10)});
+    }
+    if(!imp.length){alert('유효한 데이터가 없습니다.');return;}
+    if(confirm(`${imp.length}건을 기준 데이터에 추가할까요?`)){baseItems=[...baseItems,...imp];persistBase();renderKPI();renderBase();updateCodeSel();}
+  };
+  r.readAsText(f,'utf-8'); e.target.value='';
+}
+
+function downloadBaseExcel(){
+  if(!baseItems.length){alert('기준 데이터가 없습니다.\n먼저 기준 데이터를 입력해 주세요.');return;}
+  const wb=XLSX.utils.book_new();
+  const rows=[['제품코드','색상','제품명칭','가로(mm)','세로(mm)','높이(mm)','중량(kg)']];
+  baseItems.forEach(i=>rows.push([i.code,i.color||'',i.name,i.w,i.d,i.h,i.kg]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:10},{wch:20},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'기준데이터');
+  XLSX.writeFile(wb,'기준데이터_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+function downloadMeasExcel(){
+  if(!measurements.length){alert('실측 데이터가 없습니다.\n먼저 실측 데이터를 입력해 주세요.');return;}
+  const wb=XLSX.utils.book_new();
+  const rows=[['측정일','제품코드','측정자','가로(mm)','세로(mm)','높이(mm)','중량(kg)']];
+  measurements.forEach(m=>rows.push([m.date,m.code,m.by||'',m.w,m.d,m.h,m.kg]));
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:14},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb,ws,'실측데이터');
+  XLSX.writeFile(wb,'실측데이터_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+function importBaseExcel(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){alert('데이터가 없습니다.');return;}
+      const get=(row,...keys)=>{for(const k of keys){if(row[k]!==undefined&&row[k]!=='') return row[k];} return '';};
+      const imp=rows.map((row,i)=>({
+        id: Date.now()+i,
+        code:  String(get(row,'제품코드','code')||''),
+        color: String(get(row,'색상','color')||''),
+        name:  String(get(row,'제품명칭','name')||''),
+        w:     parseFloat(get(row,'가로','가로(mm)','w'))||0,
+        d:     parseFloat(get(row,'세로','세로(mm)','d'))||0,
+        h:     parseFloat(get(row,'높이','높이(mm)','h'))||0,
+        kg:    parseFloat(get(row,'중량','중량(kg)','kg'))||0,
+        createdAt: new Date().toISOString().slice(0,10)
+      })).filter(row=>row.code && row.w>0);
+      if(!imp.length){alert('유효한 데이터가 없습니다.\n헤더: 제품코드, 색상, 제품명칭, 가로, 세로, 높이, 중량');return;}
+      if(confirm(`${imp.length}건을 기준 데이터에 추가할까요?`)){
+        baseItems=[...baseItems,...imp];
+        persistBase(); renderBase(); renderKPI(); updateCodeSel(); renderCompare();
+        alert(`${imp.length}건 추가 완료`);
+      }
+    }catch(err){alert('파일 읽기 오류: '+err.message);}
+  };
+  r.readAsArrayBuffer(f); e.target.value='';
+}
+function importMeasExcel(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!rows.length){alert('데이터가 없습니다.');return;}
+      // 컬럼명 매핑: 측정일, 제품코드, 측정자, 가로, 세로, 높이, 중량
+      const get=(row,...keys)=>{for(const k of keys){if(row[k]!==undefined&&row[k]!=='') return row[k];} return '';};
+      const imp=rows.map((row,i)=>({
+        id: Date.now()+i,
+        date: String(get(row,'측정일','date','Date')||new Date().toISOString().slice(0,10)),
+        code: String(get(row,'제품코드','code','Code')||''),
+        by:   String(get(row,'측정자','by','')||''),
+        w:    parseFloat(get(row,'가로','가로(mm)','w'))||0,
+        d:    parseFloat(get(row,'세로','세로(mm)','d'))||0,
+        h:    parseFloat(get(row,'높이','높이(mm)','h'))||0,
+        kg:   parseFloat(get(row,'중량','중량(kg)','kg'))||0,
+        memo: ''
+      })).filter(row=>row.code && row.w>0);
+      if(!imp.length){alert('유효한 데이터가 없습니다.\n헤더: 측정일, 제품코드, 측정자, 가로, 세로, 높이, 중량');return;}
+      if(confirm(`${imp.length}건을 실측 데이터에 추가할까요?`)){
+        measurements=[...measurements,...imp];
+        persistMeas(); renderKPI(); renderCompare(); renderMeas();
+        alert(`${imp.length}건 추가 완료`);
+      }
+    }catch(err){alert('파일 읽기 오류: '+err.message);}
+  };
+  r.readAsArrayBuffer(f); e.target.value='';
+}
+function importMeasCSV(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const lines=ev.target.result.replace(/\r/g,'').split('\n').filter(Boolean);
+    const imp=[];
+    for(let i=1;i<lines.length;i++){
+      const c=lines[i].split(',').map(v=>v.replace(/^"|"$/g,'').trim());
+      if(c.length<7) continue;
+      // 헤더: 측정일,제품코드,제품명칭,측정자,가로,세로,높이,중량,CBM,메모
+      imp.push({id:Date.now()+i,date:c[0],code:c[1],by:c[3]||'',w:parseFloat(c[4])||0,d:parseFloat(c[5])||0,h:parseFloat(c[6])||0,kg:parseFloat(c[7])||0,memo:c[9]||''});
+    }
+    if(!imp.length){alert('유효한 데이터가 없습니다.');return;}
+    if(confirm(`${imp.length}건을 실측 데이터에 추가할까요?`)){measurements=[...measurements,...imp];persistMeas();renderKPI();renderCompare();}
+  };
+  r.readAsText(f,'utf-8'); e.target.value='';
+}
+
+/* ── INIT ── */
+/* ── 상세 비교 모달 ── */
+function showDetail(code, baseId){
+  const base=baseId ? baseItems.find(i=>i.id==baseId) : baseItems.find(i=>i.code===code);
+  if(!base) return;
+  const mList=measurements.filter(m=>m.code===code && (!baseId || !m.baseId || m.baseId==baseId)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const tol=5;
+  const bC=calcCBM(base.w,base.d,base.h);
+  const hex=colorHex(base.color);
+  const latest=mList[0]||null;
+
+  // 비교 카드: 기준 vs 실측 나란히
+  function cmpCard(label,unit,bv,mv,digits){
+    if(!mv) return `
+      <div class="cmp-card">
+        <div class="cmp-label">${label}</div>
+        <div class="cmp-row">
+          <div class="cmp-col"><div class="cmp-tag base-tag">기준</div><div class="cmp-val">${bv.toFixed?bv.toFixed(digits):bv}<span class="cmp-unit">${unit}</span></div></div>
+          <div class="cmp-col"><div class="cmp-tag meas-tag">실측</div><div class="cmp-val no-data">—</div></div>
+        </div>
+      </div>`;
+    const d=mv-bv, p=bv>0?d/bv*100:0, ap=Math.abs(p);
+    const ok=ap<=tol;
+    const pSign=p>=0?'+':'';
+    const dSign=d>=0?'+':'';
+    return`
+      <div class="cmp-card ${ok?'':'cmp-card-err'}">
+        <div class="cmp-label">${label}</div>
+        <div class="cmp-row">
+          <div class="cmp-col"><div class="cmp-tag base-tag">기준</div><div class="cmp-val">${bv.toFixed(digits)}<span class="cmp-unit">${unit}</span></div></div>
+          <div class="cmp-arrow">${ok?'✓':'!'}</div>
+          <div class="cmp-col"><div class="cmp-tag meas-tag">실측</div><div class="cmp-val">${mv.toFixed(digits)}<span class="cmp-unit">${unit}</span></div></div>
+        </div>
+        <div class="cmp-diff ${ok?'cmp-diff-ok':'cmp-diff-err'}">${dSign}${d.toFixed(digits)} (${pSign}${p.toFixed(1)}%)</div>
+      </div>`;
+  }
+
+  // 치수 비교 행
+  function dimRow(label,bv,mv,dec=0){
+    if(!mv) return `<tr><td>${label}</td><td>${bv}</td><td>—</td><td class="d-neutral">—</td><td>—</td></tr>`;
+    const d=mv-bv, p=bv>0?d/bv*100:0, ap=Math.abs(p), ok=ap<=tol;
+    const dVal=dec===0?Math.round(d):d.toFixed(dec);
+    return`<tr>
+      <td>${label}</td>
+      <td><strong>${dec===0?Math.round(bv):bv.toFixed(dec)}</strong></td>
+      <td>${dec===0?Math.round(mv):mv.toFixed(dec)}</td>
+      <td class="${ok?'d-ok':'d-err'}">${d>=0?'+':''}${dVal}</td>
+      <td class="${ok?'d-ok':'d-err'}" style="font-weight:600;">${p>=0?'+':''}${p.toFixed(1)}%</td>
+    </tr>`;
+  }
+
+  // 실측 이력 테이블
+  function histRow(m){
+    const mC=calcCBM(m.w,m.d,m.h);
+    const labels=['가로','세로','높이','CBM','중량'];
+    const vals=[base.w,base.d,base.h,bC,base.kg];
+    const mvs=[m.w,m.d,m.h,mC,m.kg];
+    const pcts=vals.map((bv,i)=>bv>0?(mvs[i]-bv)/bv*100:0);
+    const maxP=Math.max(...pcts.map(Math.abs));
+    const judge=maxP<=tol?`<span class="sp sp-ok">정상</span>`:maxP<=tol*2?`<span class="sp sp-warn">경고</span>`:`<span class="sp sp-err">오류</span>`;
+    // 자동 메모: 차이 있는 항목 모두 나열
+    const all=pcts.map((p,i)=>Math.abs(p)>0?`${labels[i]}(${p>=0?'+':''}${p.toFixed(1)}%)`:null).filter(Boolean);
+    const dimAll=all.filter(s=>['가로','세로','높이'].some(l=>s.startsWith(l)));
+    const etcAll=all.filter(s=>['CBM','중량'].some(l=>s.startsWith(l)));
+    const autoMemo=all.length?(dimAll.join(', ')+(etcAll.length?`<br>${etcAll.join(', ')}`:'')):' 차이 없음';
+    function dc(bv,mv){const d=mv-bv,p=bv>0?d/bv*100:0,ok=Math.abs(p)<=tol;return`<span class="${ok?'d-ok':'d-err'}">(${p>=0?'+':''}${p.toFixed(1)}%)</span>`;}
+    return`<tr>
+      <td>${m.date}</td><td>${m.by||'—'}</td>
+      <td>${m.w}<br><small>${dc(base.w,m.w)}</small></td>
+      <td>${m.d}<br><small>${dc(base.d,m.d)}</small></td>
+      <td>${m.h}<br><small>${dc(base.h,m.h)}</small></td>
+      <td>${m.kg.toFixed(1)}<br><small>${dc(base.kg,m.kg)}</small></td>
+      <td><span class="cbm-pill">${mC.toFixed(3)}</span><br><small>${dc(bC,mC)}</small></td>
+      <td>${judge}</td>
+      <td style="font-size:11px;color:${all.some(s=>pcts[labels.indexOf(s.split('(')[0])]&&Math.abs(pcts[labels.indexOf(s.split('(')[0])])>tol)?'var(--red)':'var(--teal)'};">${autoMemo}</td>
+    </tr>`;
+  }
+
+  const lv=latest;
+  document.getElementById('detailModal').innerHTML=`
+    <div class="modal-bg" onclick="if(event.target===this)closeDetail()">
+      <div class="modal" style="max-width:820px;">
+        <div class="modal-hdr">
+          <div>
+            <div class="modal-title">
+              <span style="display:inline-flex;align-items:center;gap:7px;">
+                <span style="width:11px;height:11px;border-radius:50%;background:${hex};border:1px solid #ccc;flex-shrink:0;display:inline-block;"></span>
+                ${base.code} · ${base.name}
+              </span>
+            </div>
+            <div class="modal-sub">${base.color||''} · 등록일 ${base.createdAt||'—'} · 실측 ${mList.length}건</div>
+          </div>
+          <button class="modal-close" onclick="closeDetail()">✕</button>
+        </div>
+        <div class="modal-body">
+
+          ${lv?`
+          <!-- ① 최신 실측 비교 카드 -->
+          <div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">(${lv.date} · ${lv.by||'측정자 미기재'} · 허용오차 ±${tol}%)</span></div>
+          <div class="cmp-cards">
+            ${cmpCard('CBM','m³',bC,calcCBM(lv.w,lv.d,lv.h),3)}
+            ${cmpCard('중량','kg',base.kg,lv.kg,1)}
+          </div>
+
+          <!-- ② 치수 상세 -->
+          <div class="detail-sec" style="margin:14px 0 6px;">치수 및 중량 비교 (mm/kg)</div>
+          <table class="dtbl" style="margin-bottom:14px;">
+            <thead><tr><th>항목</th><th>기준</th><th>실측</th><th>차이(mm)</th><th>차이율</th></tr></thead>
+            <tbody>
+              ${dimRow('가로',base.w,lv.w,0)}
+              ${dimRow('세로',base.d,lv.d,0)}
+              ${dimRow('높이',base.h,lv.h,0)}
+              ${dimRow('중량(kg)',base.kg,lv.kg,1)}
+            </tbody>
+          </table>
+          `:`<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:13px;">실측 데이터가 없습니다.</div>`}
+
+          <!-- ③ 전체 이력 -->
+          <div class="detail-sec" style="margin-bottom:6px;">전체 실측 이력</div>
+          <div style="overflow-x:auto;">
+            <table class="dtbl">
+              <thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th><th>메모</th></tr></thead>
+              <tbody>${mList.length?mList.map(histRow).join(''):`<tr><td colspan="9" class="empty-state" style="padding:16px;"><p>실측 데이터 없음</p></td></tr>`}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('detailModal').style.display='block';
+}
+function closeDetail(){
+  document.getElementById('detailModal').style.display='none';
+  document.getElementById('detailModal').innerHTML='';
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail();});
+
+/* ── 주차 자동 필터 ── */
+function getPrevWeekRange(){
+  const now = new Date();
+  const day = now.getDay(); // 0=일,1=월,2=화...6=토
+  const hour = now.getHours();
+  // 기준: 화요일 오후 12시에 새 주차로 전환
+  // 화요일 오전 12시 이전 → 이전 주기 (7일 전 화요일 기준)
+  let d;
+  if     (day===2 && hour>=12) d=0; // 화 오후 → 오늘 화요일부터
+  else if(day===2 && hour<12)  d=7; // 화 오전 → 지난 화요일부터
+  else if(day===3) d=1;
+  else if(day===4) d=2;
+  else if(day===5) d=3;
+  else if(day===6) d=4;
+  else if(day===0) d=5;
+  else             d=6; // 월요일
+  const thisTue = new Date(now);
+  thisTue.setDate(now.getDate() - d);
+  thisTue.setHours(0,0,0,0);
+  const thisMon = new Date(thisTue);
+  thisMon.setDate(thisTue.getDate() + 6);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return { from: fmt(thisTue), to: fmt(thisMon) };
+}
+
+function getWeekNum(dateStr){
+  const d = new Date(dateStr);
+  const start = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+}
+
+function applyWeekFilter(){
+  const {from, to} = getPrevWeekRange();
+  document.getElementById('cmpFrom').value = from;
+  document.getElementById('cmpTo').value   = to;
+  const wn = getWeekNum(from);
+  const label = document.getElementById('weekLabel');
+  if(label) label.textContent = `${from.slice(0,4)}년 제${wn}주 (${from} ~ ${to})`;
+  renderCompare();
+}
+
+let _lastWeekFrom = '';
+function startWeekAutoRefresh(){
+  setInterval(function(){
+    const now = new Date();
+    // 매주 화요일 오후 12시 이후 자동 갱신
+    if(now.getDay() === 2 && now.getHours() >= 12){
+      const {from} = getPrevWeekRange();
+      if(from !== _lastWeekFrom){
+        _lastWeekFrom = from;
+        applyWeekFilter();
+      }
+    }
+  }, 60000);
+}
+
+function initApp(){
+  renderKPI();
+  setStatus('all');
+  setCmpStatus('all');
+  updateCodeSel();
+  document.getElementById('mf_date').value=new Date().toISOString().slice(0,10);
+  applyWeekFilter();
+  startWeekAutoRefresh();
+  startCloudSync();
+  function doRender(){ renderAll(); }
+  requestAnimationFrame(function(){ requestAnimationFrame(doRender); });
+  setTimeout(doRender, 300);
+  setTimeout(doRender, 800);
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden){ doRender(); }
+  });
+  window.addEventListener('focus', doRender);
+}
+if(document.readyState==='complete') initApp();
+else window.addEventListener('load', initApp);
+</script>
+</body>
+</html>
