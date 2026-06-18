@@ -431,8 +431,9 @@ const store = {
 /* ── DATA ── */
 
 const GOOGLE_SHEET_ID = '1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZPlYI';
-const APPS_SCRIPT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbydZS45r-GF8gmo_IQfuxMp5FpSe1ZAEBwLrJ11CKSuOM6YSF1A0j1wKNyg96H_JIqpIQ/exec';
+const APPS_SCRIPT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbziJBymbJthT2slzUPcXza2Nb_5GVvhjXrC9qWsOi87G5u0ZDyXwazafhEc5f_IWoRyMw/exec';
 const SYNC_POLL_MS = 60000;
+const REDIRECT_GITHUB_TO_APPS_SCRIPT = true;
 let _syncLoading = false;
 let _syncTimer = null;
 let _pushTimer = null;
@@ -527,8 +528,45 @@ function loadJsonp(url){
     document.head.appendChild(script);
   });
 }
+function isAppsScriptHost(){
+  return !!(window.google && google.script && google.script.run);
+}
+function redirectToAppsScriptIfNeeded(){
+  if(!REDIRECT_GITHUB_TO_APPS_SCRIPT || !APPS_SCRIPT_WEBAPP_URL) return false;
+  if(location.hostname.endsWith('github.io')){
+    setSyncStatus('동기화 앱으로 이동 중', 'warn');
+    location.replace(APPS_SCRIPT_WEBAPP_URL);
+    return true;
+  }
+  return false;
+}
+function applyCloudData(json){
+  const baseRows=[['id','code','color','name','w','d','h','kg','createdAt'],...(json.base||[]).map(x=>[x.id,x.code,x.color,x.name,x.w,x.d,x.h,x.kg,x.createdAt])];
+  const measRows=[['id','code','baseId','date','by','w','d','h','kg','memo'],...(json.measurements||[]).map(x=>[x.id,x.code,x.baseId,x.date,x.by,x.w,x.d,x.h,x.kg,x.memo])];
+  const nextBase=normalizeBaseRows(baseRows);
+  const nextMeas=normalizeMeasurementRows(measRows);
+  if(nextBase.length) baseItems=nextBase;
+  measurements=nextMeas;
+  store.set('cbm_base', JSON.stringify(baseItems));
+  store.set('cbm_meas', JSON.stringify(measurements));
+  renderAll();
+  setSyncStatus(`시트 동기화 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`, 'ok');
+}
 async function loadCloudData(opts={}){
   if(_syncLoading) return;
+  if(isAppsScriptHost()){
+    _syncLoading=true;
+    setSyncStatus('시트 읽는 중', 'warn');
+    google.script.run
+      .withSuccessHandler(json=>{ applyCloudData(json||{}); _syncLoading=false; })
+      .withFailureHandler(err=>{
+        _syncLoading=false;
+        if(opts.manual) alert('시트 동기화 실패: '+(err.message||err));
+        setSyncStatus('동기화 실패', 'err');
+      })
+      .loadData();
+    return;
+  }
   if(!APPS_SCRIPT_WEBAPP_URL){
     setSyncStatus('Apps Script 연결 필요', 'warn');
     if(opts.manual) alert('실시간 동기화를 사용하려면 google-apps-script.gs를 웹앱으로 배포한 뒤 APPS_SCRIPT_WEBAPP_URL에 입력해야 합니다.');
@@ -538,16 +576,7 @@ async function loadCloudData(opts={}){
   setSyncStatus('시트 읽는 중', 'warn');
   try{
     const json=await loadJsonp(`${APPS_SCRIPT_WEBAPP_URL}?action=load`);
-    const baseRows=[['id','code','color','name','w','d','h','kg','createdAt'],...(json.base||[]).map(x=>[x.id,x.code,x.color,x.name,x.w,x.d,x.h,x.kg,x.createdAt])];
-    const measRows=[['id','code','baseId','date','by','w','d','h','kg','memo'],...(json.measurements||[]).map(x=>[x.id,x.code,x.baseId,x.date,x.by,x.w,x.d,x.h,x.kg,x.memo])];
-    const nextBase=normalizeBaseRows(baseRows);
-    const nextMeas=normalizeMeasurementRows(measRows);
-    if(nextBase.length) baseItems=nextBase;
-    measurements=nextMeas;
-    store.set('cbm_base', JSON.stringify(baseItems));
-    store.set('cbm_meas', JSON.stringify(measurements));
-    renderAll();
-    setSyncStatus(`시트 동기화 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`, 'ok');
+    applyCloudData(json||{});
   }catch(err){
     if(opts.manual) alert('시트 동기화 실패: '+err.message);
     setSyncStatus(APPS_SCRIPT_WEBAPP_URL?'동기화 실패':'시트 권한 필요', 'err');
@@ -564,6 +593,16 @@ function queueCloudSave(){
 async function saveCloudData(){
   if(!APPS_SCRIPT_WEBAPP_URL) return;
   setSyncStatus('시트 저장 중', 'warn');
+  if(isAppsScriptHost()){
+    google.script.run
+      .withSuccessHandler(()=>setSyncStatus('시트 저장 완료', 'ok'))
+      .withFailureHandler(err=>{
+        setSyncStatus('저장 실패', 'err');
+        console.warn(err);
+      })
+      .saveData({base:baseItems,measurements});
+    return;
+  }
   try{
     await fetch(APPS_SCRIPT_WEBAPP_URL,{
       method:'POST',
@@ -1358,6 +1397,7 @@ function startWeekAutoRefresh(){
 }
 
 function initApp(){
+  if(redirectToAppsScriptIfNeeded()) return;
   renderKPI();
   setStatus('all');
   setCmpStatus('all');

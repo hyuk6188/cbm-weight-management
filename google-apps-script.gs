@@ -3,13 +3,29 @@ const BASE_SHEET = 'BaseData';
 const MEAS_SHEET = 'Measurements';
 
 function doGet(e) {
-  return jsonResponse(loadData_(), e && e.parameter && e.parameter.callback);
+  const params = e && e.parameter ? e.parameter : {};
+  if (params.action === 'load' || params.callback) {
+    return jsonResponse(loadData_(), params.callback);
+  }
+  return HtmlService
+    .createHtmlOutputFromFile('cbm_dashboard_exec')
+    .setTitle('CBM 및 중량 관리')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function doPost(e) {
   const payload = JSON.parse(e.postData.contents || '{}');
   saveData_(payload);
   return jsonResponse({ ok: true, savedAt: new Date().toISOString() });
+}
+
+function loadData() {
+  return loadData_();
+}
+
+function saveData(payload) {
+  saveData_(payload || {});
+  return { ok: true, savedAt: new Date().toISOString() };
 }
 
 function jsonResponse(data, callback) {
