@@ -1608,9 +1608,23 @@ else window.addEventListener('load', initApp);
     if(byId('measInfo')) byId('measInfo').textContent=rows.length+'건';
   }
   function syncCompat(){
+    var payloadObj={base:compatBase,measurements:compatMeas,note:byId('kpi-note')?byId('kpi-note').value:''};
+    if(window.google && google.script && google.script.run){
+      if(byId('syncStatus')){ byId('syncStatus').textContent='점검 내용 저장 중'; byId('syncStatus').className='sync-chip warn'; }
+      google.script.run
+        .withSuccessHandler(function(){
+          if(byId('syncStatus')){ byId('syncStatus').textContent='동기화 완료'; byId('syncStatus').className='sync-chip ok'; }
+        })
+        .withFailureHandler(function(err){
+          if(byId('syncStatus')){ byId('syncStatus').textContent='저장 실패'; byId('syncStatus').className='sync-chip err'; }
+          alert('점검 내용 저장 실패: '+(err && err.message ? err.message : err));
+        })
+        .saveData(payloadObj);
+      return;
+    }
     if(!window.CBM_SYNC_APP_URL) return;
     try{
-      var payload=JSON.stringify({base:compatBase,measurements:compatMeas,note:byId('kpi-note')?byId('kpi-note').value:''});
+      var payload=JSON.stringify(payloadObj);
       fetch(window.CBM_SYNC_APP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:payload});
       if(byId('syncStatus')){ byId('syncStatus').textContent='동기화 완료'; byId('syncStatus').className='sync-chip ok'; }
     }catch(e){}
