@@ -1,6 +1,8 @@
 var SPREADSHEET_ID = '1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZPlYI';
 var BASE_SHEET = 'BaseData';
 var MEAS_SHEET = 'Measurements';
+var SETTINGS_SHEET = 'Settings';
+var DEFAULT_NOTE = '1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성\n2. CBM 자동구성 DW+보정값 로직 수정 필요\n3. 박스업체 로트별 재단치수 상이';
 
 function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
@@ -44,6 +46,7 @@ function loadData_() {
   return {
     base: readObjects_(ss.getSheetByName(BASE_SHEET)),
     measurements: readObjects_(ss.getSheetByName(MEAS_SHEET)),
+    note: readNote_(ss),
   };
 }
 
@@ -51,6 +54,23 @@ function saveData_(payload) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   writeObjects_(ss.getSheetByName(BASE_SHEET), ['id', 'code', 'color', 'name', 'w', 'd', 'h', 'kg', 'createdAt'], payload.base || []);
   writeObjects_(ss.getSheetByName(MEAS_SHEET), ['id', 'code', 'baseId', 'date', 'by', 'w', 'd', 'h', 'kg', 'memo'], payload.measurements || []);
+  writeNote_(ss, payload.note);
+}
+
+function getSettingsSheet_(ss) {
+  return ss.getSheetByName(SETTINGS_SHEET) || ss.insertSheet(SETTINGS_SHEET);
+}
+
+function readNote_(ss) {
+  var sheet = getSettingsSheet_(ss);
+  var value = sheet.getRange(1, 2).getValue();
+  return value || DEFAULT_NOTE;
+}
+
+function writeNote_(ss, note) {
+  var sheet = getSettingsSheet_(ss);
+  sheet.getRange(1, 1, 1, 2).setValues([['note', note || DEFAULT_NOTE]]);
+  sheet.setFrozenRows(1);
 }
 
 function readObjects_(sheet) {

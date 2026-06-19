@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -67,12 +67,13 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .hero-title h1 em{color:var(--blue);font-style:normal;}
 .hero-title p{font-size:14px;color:var(--g400);}
 .chip{background:var(--g100);color:var(--g600);border:1px solid var(--g200);border-radius:20px;padding:4px 12px;font-size:13px;}
-.hero-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.hero-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 2.5fr;gap:12px;}
 .hkpi{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:14px 20px;}
 .hkpi .n{font-size:34px;font-weight:800;line-height:1;margin-bottom:0;}
 .hkpi .n.blue{color:var(--blue);} .hkpi .n.green{color:var(--teal);} .hkpi .n.red{color:var(--red);}
 .hkpi .l{font-size:14px;color:var(--g600);margin-bottom:8px;}
 .hkpi .s{font-size:11px;color:var(--g400);margin-top:1px;}
+.hkpi-note textarea{width:100%;height:90px;border:none;background:transparent;resize:none;font-family:inherit;font-size:17px;font-weight:600;color:var(--g800);outline:none;line-height:1.6;overflow:hidden;display:block;}
 
 /* LAYOUT */
 .wrapper{max-width:calc(1100px + 4rem);margin:0 auto;padding:1.5rem 2rem 3rem;}
@@ -266,6 +267,7 @@ footer strong{color:var(--g600);}
       <div class="hkpi"><div class="l">총 품목 <span class="s">(수량)</span></div><div class="n blue" id="kpi-total">0</div></div>
       <div class="hkpi"><div class="l">정상 품목 <span class="s">(수량)</span></div><div class="n green" id="kpi-ok">0</div></div>
       <div class="hkpi"><div class="l">오류 품목 <span class="s">(수량)</span></div><div class="n red" id="kpi-err">0</div></div>
+      <div class="hkpi hkpi-note"><div class="l">점검 내용</div><textarea id="kpi-note" oninput="persistNote()">1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성&#10;2. CBM 자동구성 DW+보정값 로직 수정 필요&#10;3. 박스업체 로트별 재단치수 상이</textarea></div>
     </div>
   </div>
 </div>
@@ -499,6 +501,14 @@ function ensureSeedData(){
 
 function persistBase() { store.set('cbm_base', JSON.stringify(baseItems)); queueCloudSave(); }
 function persistMeas() { store.set('cbm_meas', JSON.stringify(measurements)); queueCloudSave(); }
+function getNoteValue(){
+  const el=document.getElementById('kpi-note');
+  return el ? el.value : (store.get('cbm_note') || DEFAULT_NOTE);
+}
+function persistNote(){
+  store.set('cbm_note', getNoteValue());
+  queueCloudSave();
+}
 function setSyncStatus(text, state='warn'){
   const el=document.getElementById('syncStatus');
   if(!el) return;
@@ -602,6 +612,11 @@ function applyCloudData(json){
   const nextMeas=normalizeMeasurementRows(measRows);
   if(nextBase.length) baseItems=nextBase;
   if(nextMeas.length) measurements=nextMeas;
+  if(typeof json.note === 'string'){
+    store.set('cbm_note', json.note);
+    const noteEl=document.getElementById('kpi-note');
+    if(noteEl) noteEl.value=json.note || DEFAULT_NOTE;
+  }
   ensureSeedData();
   store.set('cbm_base', JSON.stringify(baseItems));
   store.set('cbm_meas', JSON.stringify(measurements));
@@ -660,7 +675,7 @@ async function saveCloudData(){
         setSyncStatus('저장 실패', 'err');
         console.warn(err);
       })
-      .saveData({base:baseItems,measurements});
+      .saveData({base:baseItems,measurements,note:getNoteValue()});
     return;
   }
   try{
@@ -668,7 +683,7 @@ async function saveCloudData(){
       method:'POST',
       mode:'no-cors',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({base:baseItems,measurements})
+      body:JSON.stringify({base:baseItems,measurements,note:getNoteValue()})
     });
     setSyncStatus('시트 저장 완료', 'ok');
   }catch(err){
@@ -1464,9 +1479,17 @@ function startWeekAutoRefresh(){
   }, 60000);
 }
 
+const DEFAULT_NOTE='1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성\n2. CBM 자동구성 DW+보정값 로직 수정 필요\n3. 박스업체 로트별 재단치수 상이';
+
 function initApp(){
   if(redirectToAppsScriptIfNeeded()) return;
   ensureSeedData();
+  const noteEl=document.getElementById('kpi-note');
+  if(noteEl){
+    const saved=SERVER_DATA && typeof SERVER_DATA.note === 'string' ? SERVER_DATA.note : store.get('cbm_note');
+    noteEl.value=(saved!==null && saved!==undefined)?saved:DEFAULT_NOTE;
+    store.set('cbm_note', noteEl.value);
+  }
   if(SERVER_BASE && SERVER_MEAS) setSyncStatus('시트 데이터 로드됨', 'ok');
   renderKPI();
   setStatus('all');
