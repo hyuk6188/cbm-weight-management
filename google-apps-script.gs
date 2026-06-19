@@ -9,10 +9,10 @@ function doGet(e) {
   }
   const template = HtmlService.createTemplateFromFile('cbm_dashboard_exec');
   template.dataJson = JSON.stringify(loadData_());
-  return template
-    .evaluate()
-    .setTitle('CBM 및 중량 관리')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  const output = template.evaluate();
+  output.setTitle('CBM 및 중량 관리');
+  output.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return output;
 }
 
 function doPost(e) {
