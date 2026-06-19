@@ -2,10 +2,13 @@ var SPREADSHEET_ID = '1TjI5rFOn5z46cDYYjB5F8oLxLtTxA-InDOMjByZPlYI';
 var BASE_SHEET = 'BaseData';
 var MEAS_SHEET = 'Measurements';
 var SETTINGS_SHEET = 'Settings';
-var DEFAULT_NOTE = '1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성\n2. CBM 자동구성 DW+보정값 로직 수정 필요\n3. 박스업체 로트별 재단치수 상이';
+var DEFAULT_NOTE = '1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성\n2. CBM 자동구성 DW+박스형태+보정값 로직 수정 필요\n3. 박스업체 로트별 재단 치수 및 괘선 위치 상이';
 
 function doGet(e) {
   var params = e && e.parameter ? e.parameter : {};
+  if (params.action === 'saveNote') {
+    return jsonResponse(saveNoteAndVerify(params.note), params.callback);
+  }
   if (params.action === 'load' || params.callback) {
     return jsonResponse(loadData_(), params.callback);
   }
@@ -20,8 +23,7 @@ function doGet(e) {
 function doPost(e) {
   var payload = JSON.parse(e.postData.contents || '{}');
   if (payload.action === 'saveNote') {
-    saveNote(payload.note);
-    return jsonResponse({ ok: true, savedAt: new Date().toISOString() });
+    return jsonResponse(saveNoteAndVerify(payload.note));
   }
   saveData_(payload);
   return jsonResponse({ ok: true, savedAt: new Date().toISOString() });
@@ -40,6 +42,17 @@ function saveNote(note) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   writeNote_(ss, note);
   return { ok: true, savedAt: new Date().toISOString() };
+}
+
+function saveNoteAndVerify(note) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  writeNote_(ss, note);
+  SpreadsheetApp.flush();
+  return {
+    ok: true,
+    note: readNote_(ss),
+    savedAt: new Date().toISOString(),
+  };
 }
 
 function jsonResponse(data, callback) {
