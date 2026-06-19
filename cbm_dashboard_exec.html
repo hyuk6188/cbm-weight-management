@@ -1518,6 +1518,7 @@ else window.addEventListener('load', initApp);
   function byId(id){ return document.getElementById(id); }
   function cbm(x){ return (Number(x.w||0)/1000)*(Number(x.d||0)/1000)*(Number(x.h||0)/1000); }
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function attr(v){ return esc(v).replace(/`/g,'&#96;'); }
   function getServer(){
     var el=byId('server-data');
     if(!el) return null;
@@ -1560,7 +1561,7 @@ else window.addEventListener('load', initApp);
       var cls=maxP<=5?'row-ok':maxP<=10?'row-warn':'row-err';
       if(maxP<=5) ok++; else err++;
       var judge=maxP<=5?'<span class="sp sp-ok">정상</span>':maxP<=10?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
-      rows.push('<tr class="'+cls+'"><td style="font-weight:600;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td style="color:var(--g400);font-size:12px;">'+esc(m.date)+'</td></tr>');
+      rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td style="color:var(--g400);font-size:12px;">'+esc(m.date)+'</td></tr>');
     }
     if(byId('kpi-total')) byId('kpi-total').textContent=total;
     if(byId('kpi-ok')) byId('kpi-ok').textContent=ok;
@@ -1575,6 +1576,12 @@ else window.addEventListener('load', initApp);
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderCompat);
   else renderCompat();
   setTimeout(renderCompat, 500);
+  document.addEventListener('dblclick', function(e){
+    var row = e.target && e.target.closest ? e.target.closest('#compareTb tr[data-code]') : null;
+    if(row && typeof window.showDetail === 'function') {
+      window.showDetail(row.getAttribute('data-code'), row.getAttribute('data-base-id'));
+    }
+  });
 })();
 </script>
 </body>
