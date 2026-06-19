@@ -1519,6 +1519,9 @@ else window.addEventListener('load', initApp);
   function cbm(x){ return (Number(x.w||0)/1000)*(Number(x.d||0)/1000)*(Number(x.h||0)/1000); }
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function attr(v){ return esc(v).replace(/`/g,'&#96;'); }
+  var compatBase = [];
+  var compatMeas = [];
+  var compatLoaded = false;
   function getServer(){
     var el=byId('server-data');
     if(!el) return null;
@@ -1542,8 +1545,13 @@ else window.addEventListener('load', initApp);
   }
   function renderCompat(){
     var server=getServer() || {};
-    var base = server.base && server.base.length ? server.base : FALLBACK_BASE;
-    var meas = server.measurements && server.measurements.length ? server.measurements : FALLBACK_MEAS;
+    if(!compatLoaded){
+      compatBase = (server.base && server.base.length ? server.base : FALLBACK_BASE).slice();
+      compatMeas = (server.measurements && server.measurements.length ? server.measurements : FALLBACK_MEAS).slice();
+      compatLoaded = true;
+    }
+    var base = compatBase;
+    var meas = compatMeas;
     var total=0, ok=0, err=0, rows=[];
     for(var i=0;i<base.length;i++){
       var b=base[i], m=latestFor(b, meas);
@@ -1573,6 +1581,92 @@ else window.addEventListener('load', initApp);
       byId('syncStatus').className='sync-chip '+(server.base&&server.measurements?'ok':'warn');
     }
   }
+  function renderBaseCompat(){
+    var tb=byId('baseTb');
+    if(!tb) return;
+    var rows=[];
+    for(var i=0;i<compatBase.length;i++){
+      var b=compatBase[i], c=cbm(b);
+      rows.push('<tr class="clickable" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')"><td style="font-weight:600;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td><td>'+esc(b.w)+'</td><td>'+esc(b.d)+'</td><td>'+esc(b.h)+'</td><td><span class="cbm-pill">'+c.toFixed(3)+'</span></td><td>'+Number(b.kg||0).toFixed(1)+'</td><td style="color:var(--g400);">더블클릭: 상세</td></tr>');
+    }
+    tb.innerHTML=rows.join('');
+    if(byId('baseInfo')) byId('baseInfo').textContent=rows.length+'건';
+  }
+  function renderMeasCompat(){
+    var tb=byId('measTb');
+    if(!tb) return;
+    var rows=[];
+    for(var i=0;i<compatMeas.length;i++){
+      var m=compatMeas[i], b=null;
+      for(var j=0;j<compatBase.length;j++){ if(compatBase[j].code===m.code){ b=compatBase[j]; break; } }
+      rows.push('<tr><td>'+esc(m.date)+'</td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td><span class="sp sp-ok">저장</span></td><td>'+esc(m.by||'')+'</td><td>'+esc(m.memo||'')+'</td></tr>');
+    }
+    tb.innerHTML=rows.join('');
+    if(byId('measInfo')) byId('measInfo').textContent=rows.length+'건';
+  }
+  function syncCompat(){
+    if(!window.CBM_SYNC_APP_URL) return;
+    try{
+      var payload=JSON.stringify({base:compatBase,measurements:compatMeas,note:byId('kpi-note')?byId('kpi-note').value:''});
+      fetch(window.CBM_SYNC_APP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:payload});
+      if(byId('syncStatus')){ byId('syncStatus').textContent='시트 저장 완료'; byId('syncStatus').className='sync-chip ok'; }
+    }catch(e){}
+  }
+  window.switchTab=function(t){
+    var tabs=document.querySelectorAll('.nav-tab');
+    for(var i=0;i<tabs.length;i++){
+      var on=tabs[i].getAttribute('onclick')||'';
+      tabs[i].classList.toggle('active', on.indexOf("'"+t+"'")!==-1);
+    }
+    var panes=document.querySelectorAll('.pane');
+    for(var j=0;j<panes.length;j++) panes[j].classList.toggle('active', panes[j].id==='pane-'+t);
+    if(t==='base') renderBaseCompat();
+    if(t==='meas') renderMeasCompat();
+    if(t==='compare') renderCompat();
+  };
+  window.showDetail=function(code, baseId){
+    var b=null, i;
+    for(i=0;i<compatBase.length;i++){ if(String(compatBase[i].id)===String(baseId) || (!baseId && compatBase[i].code===code)){ b=compatBase[i]; break; } }
+    if(!b) return;
+    var list=[];
+    for(i=0;i<compatMeas.length;i++){ if(compatMeas[i].code===b.code) list.push(compatMeas[i]); }
+    list.sort(function(a,b){ return String(b.date).localeCompare(String(a.date)) || Number(b.id||0)-Number(a.id||0); });
+    var latest=list[0], bC=cbm(b), mC=latest?cbm(latest):0;
+    var body=latest?'<div class="detail-sec">최신 실측 비교</div><table class="dtbl"><thead><tr><th>항목</th><th>기준</th><th>실측</th><th>차이</th></tr></thead><tbody>'+
+      '<tr><td>가로</td><td>'+esc(b.w)+'</td><td>'+esc(latest.w)+'</td><td>'+esc(Number(latest.w||0)-Number(b.w||0))+'</td></tr>'+
+      '<tr><td>세로</td><td>'+esc(b.d)+'</td><td>'+esc(latest.d)+'</td><td>'+esc(Number(latest.d||0)-Number(b.d||0))+'</td></tr>'+
+      '<tr><td>높이</td><td>'+esc(b.h)+'</td><td>'+esc(latest.h)+'</td><td>'+esc(Number(latest.h||0)-Number(b.h||0))+'</td></tr>'+
+      '<tr><td>CBM</td><td>'+bC.toFixed(3)+'</td><td>'+mC.toFixed(3)+'</td><td>'+(mC-bC).toFixed(3)+'</td></tr>'+
+      '<tr><td>중량</td><td>'+Number(b.kg||0).toFixed(1)+'</td><td>'+Number(latest.kg||0).toFixed(1)+'</td><td>'+(Number(latest.kg||0)-Number(b.kg||0)).toFixed(1)+'</td></tr>'+
+      '</tbody></table>':'<p style="padding:16px;color:var(--g400);">실측 데이터가 없습니다.</p>';
+    var hist='<div class="detail-sec" style="margin-top:14px;">전체 실측 이력</div><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량</th></tr></thead><tbody>';
+    for(i=0;i<list.length;i++) hist+='<tr><td>'+esc(list[i].date)+'</td><td>'+esc(list[i].by||'')+'</td><td>'+esc(list[i].w)+'</td><td>'+esc(list[i].d)+'</td><td>'+esc(list[i].h)+'</td><td>'+esc(list[i].kg)+'</td></tr>';
+    hist+='</tbody></table>';
+    byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal"><div class="modal-hdr"><div><div class="modal-title">'+esc(b.code)+' · '+esc(b.name)+'</div><div class="modal-sub">'+esc(b.color||'')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">x</button></div><div class="modal-body">'+body+hist+'</div></div></div>';
+    byId('detailModal').style.display='block';
+  };
+  window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; } };
+  window.resetBaseForm=function(){ ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); };
+  window.resetMeasForm=function(){ ['mf_code','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); };
+  window.bLP=function(){};
+  window.mLP=function(){};
+  window.saveBase=function(){
+    var code=(byId('bf_code')&&byId('bf_code').value||'').trim().toUpperCase();
+    var name=(byId('bf_name')&&byId('bf_name').value||'').trim();
+    var w=Number(byId('bf_w')&&byId('bf_w').value), d=Number(byId('bf_d')&&byId('bf_d').value), h=Number(byId('bf_h')&&byId('bf_h').value), kg=Number(byId('bf_kg')&&byId('bf_kg').value);
+    if(!code||!name||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('필수 항목을 입력해 주세요.'); return; }
+    compatBase.push({id:Date.now(),code:code,color:(byId('bf_color')&&byId('bf_color').value||'').trim(),name:name,w:w,d:d,h:h,kg:kg,createdAt:new Date().toISOString().slice(0,10)});
+    resetBaseForm(); renderBaseCompat(); renderCompat(); syncCompat();
+  };
+  window.saveMeas=function(){
+    var code=(byId('mf_code')&&byId('mf_code').value||'').trim().toUpperCase();
+    var date=(byId('mf_date')&&byId('mf_date').value)||new Date().toISOString().slice(0,10);
+    var w=Number(byId('mf_w')&&byId('mf_w').value), d=Number(byId('mf_d')&&byId('mf_d').value), h=Number(byId('mf_h')&&byId('mf_h').value), kg=Number(byId('mf_kg')&&byId('mf_kg').value);
+    if(!code||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('필수 항목을 입력해 주세요.'); return; }
+    var baseId=null; for(var i=0;i<compatBase.length;i++){ if(compatBase[i].code===code){ baseId=compatBase[i].id; break; } }
+    compatMeas.push({id:Date.now(),code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:''});
+    resetMeasForm(); renderMeasCompat(); renderCompat(); syncCompat();
+  };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderCompat);
   else renderCompat();
   setTimeout(renderCompat, 500);
