@@ -19,6 +19,10 @@ function doGet(e) {
 
 function doPost(e) {
   var payload = JSON.parse(e.postData.contents || '{}');
+  if (payload.action === 'saveNote') {
+    saveNote(payload.note);
+    return jsonResponse({ ok: true, savedAt: new Date().toISOString() });
+  }
   saveData_(payload);
   return jsonResponse({ ok: true, savedAt: new Date().toISOString() });
 }
@@ -29,6 +33,12 @@ function loadData() {
 
 function saveData(payload) {
   saveData_(payload || {});
+  return { ok: true, savedAt: new Date().toISOString() };
+}
+
+function saveNote(note) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  writeNote_(ss, note);
   return { ok: true, savedAt: new Date().toISOString() };
 }
 
@@ -54,7 +64,9 @@ function saveData_(payload) {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   writeObjects_(ss.getSheetByName(BASE_SHEET), ['id', 'code', 'color', 'name', 'w', 'd', 'h', 'kg', 'createdAt'], payload.base || []);
   writeObjects_(ss.getSheetByName(MEAS_SHEET), ['id', 'code', 'baseId', 'date', 'by', 'w', 'd', 'h', 'kg', 'memo'], payload.measurements || []);
-  writeNote_(ss, payload.note);
+  if (Object.prototype.hasOwnProperty.call(payload, 'note')) {
+    writeNote_(ss, payload.note);
+  }
 }
 
 function getSettingsSheet_(ss) {
