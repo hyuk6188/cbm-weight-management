@@ -250,6 +250,7 @@ footer strong{color:var(--g600);}
   </div>
   <div class="nav-right">
     <span class="sync-chip warn" id="syncStatus">시트 연결 대기</span>
+    <button class="nav-btn" onclick="saveInspectionNote()">점검 내용 저장</button>
     <button class="nav-btn" onclick="window.print()">인쇄</button>
   </div>
 </nav>
@@ -506,6 +507,10 @@ function getNoteValue(){
 function persistNote(){
   store.set('cbm_note', getNoteValue());
   queueCloudSave();
+}
+function saveInspectionNote(){
+  store.set('cbm_note', getNoteValue());
+  if(typeof saveCloudData === 'function') saveCloudData();
 }
 function setSyncStatus(text, state='warn'){
   const el=document.getElementById('syncStatus');
@@ -1610,6 +1615,9 @@ else window.addEventListener('load', initApp);
       if(byId('syncStatus')){ byId('syncStatus').textContent='동기화 완료'; byId('syncStatus').className='sync-chip ok'; }
     }catch(e){}
   }
+  window.saveInspectionNote=function(){
+    syncCompat();
+  };
   window.switchTab=function(t){
     var tabs=document.querySelectorAll('.nav-tab');
     for(var i=0;i<tabs.length;i++){
