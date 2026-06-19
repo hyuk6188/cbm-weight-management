@@ -7,8 +7,10 @@ function doGet(e) {
   if (params.action === 'load' || params.callback) {
     return jsonResponse(loadData_(), params.callback);
   }
-  return HtmlService
-    .createHtmlOutputFromFile('cbm_dashboard_exec')
+  const template = HtmlService.createTemplateFromFile('cbm_dashboard_exec');
+  template.dataJson = JSON.stringify(loadData_());
+  return template
+    .evaluate()
     .setTitle('CBM 및 중량 관리')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

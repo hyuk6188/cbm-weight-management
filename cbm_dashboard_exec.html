@@ -16,6 +16,7 @@ if (location.hostname.endsWith('github.io') || location.protocol === 'file:') {
   document.documentElement.innerHTML = '<head><meta charset="UTF-8"><title>CBM 동기화 앱으로 이동</title></head><body style="font-family:Arial,sans-serif;padding:32px"><h2>CBM 동기화 앱으로 이동 중입니다.</h2><p>자동 이동이 안 되면 아래 링크를 눌러 주세요.</p><p><a href="'+window.CBM_SYNC_APP_URL+'">'+window.CBM_SYNC_APP_URL+'</a></p></body>';
 }
 </script>
+<script id="server-data" type="application/json"><?!= dataJson ?></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -449,6 +450,17 @@ let _pushTimer = null;
 const DEMO_BASE = [{"id":1781758854473,"code":"CDB0082","color":"RCN","name":"2단 도어","w":795,"d":470,"h":70,"kg":6,"createdAt":"2026-06-18"},{"id":1781758899298,"code":"CEC0083S","color":"WW","name":"3단 상부선반","w":925,"d":470,"h":60,"kg":5,"createdAt":"2026-06-18"},{"id":1781758929951,"code":"FGP0302","color":"RCNBGM","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"},{"id":1781758950613,"code":"FGP0302","color":"WW","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"}];
 const DEMO_MEAS = [{"id":1781759248597,"code":"CDB0082","baseId":1781758854473,"date":"2026-06-17","by":"배훈기","w":755,"d":435,"h":40,"kg":6.2,"memo":""},{"id":1781759280179,"code":"CEC0083S","baseId":1781758899298,"date":"2026-06-17","by":"배훈기","w":885,"d":440,"h":40,"kg":5.6,"memo":""},{"id":1781759297786,"code":"FGP0302","baseId":1781758929951,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""},{"id":1781759315793,"code":"FGP0302","baseId":1781758950613,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""}];
 
+function readServerData(){
+  const el=document.getElementById('server-data');
+  if(!el) return null;
+  const raw=(el.textContent||'').trim();
+  if(!raw || raw.startsWith('<?')) return null;
+  try { return JSON.parse(raw); } catch(e) { return null; }
+}
+const SERVER_DATA = readServerData();
+const SERVER_BASE = Array.isArray(SERVER_DATA?.base) && SERVER_DATA.base.length ? SERVER_DATA.base : null;
+const SERVER_MEAS = Array.isArray(SERVER_DATA?.measurements) && SERVER_DATA.measurements.length ? SERVER_DATA.measurements : null;
+
 function loadStoredRows(key, fallback){
   try {
     const rows = JSON.parse(store.get(key) || 'null');
@@ -458,8 +470,8 @@ function loadStoredRows(key, fallback){
     return [...fallback];
   }
 }
-let baseItems = loadStoredRows('cbm_base', DEMO_BASE);
-let measurements = loadStoredRows('cbm_meas', DEMO_MEAS);
+let baseItems = SERVER_BASE ? [...SERVER_BASE] : loadStoredRows('cbm_base', DEMO_BASE);
+let measurements = SERVER_MEAS ? [...SERVER_MEAS] : loadStoredRows('cbm_meas', DEMO_MEAS);
 let baseEditId  = null;
 let measEditId  = null;
 let curStatus   = 'all';
@@ -1455,6 +1467,7 @@ function startWeekAutoRefresh(){
 function initApp(){
   if(redirectToAppsScriptIfNeeded()) return;
   ensureSeedData();
+  if(SERVER_BASE && SERVER_MEAS) setSyncStatus('시트 데이터 로드됨', 'ok');
   renderKPI();
   setStatus('all');
   setCmpStatus('all');
