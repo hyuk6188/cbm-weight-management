@@ -619,7 +619,7 @@ function applyCloudData(json){
   store.set('cbm_base', JSON.stringify(baseItems));
   store.set('cbm_meas', JSON.stringify(measurements));
   renderAll();
-  setSyncStatus(nextBase.length && nextMeas.length ? `시트 동기화 ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}` : '기본 데이터 표시 중', nextBase.length && nextMeas.length ? 'ok' : 'warn');
+  setSyncStatus(nextBase.length && nextMeas.length ? `동기화 완료` : '기본 데이터 표시 중', nextBase.length && nextMeas.length ? 'ok' : 'warn');
 }
 async function loadCloudData(opts={}){
   if(_syncLoading) return;
@@ -668,7 +668,7 @@ async function saveCloudData(){
   setSyncStatus('시트 저장 중', 'warn');
   if(isAppsScriptHost()){
     google.script.run
-      .withSuccessHandler(()=>setSyncStatus('시트 저장 완료', 'ok'))
+      .withSuccessHandler(()=>setSyncStatus('동기화 완료', 'ok'))
       .withFailureHandler(err=>{
         setSyncStatus('저장 실패', 'err');
         console.warn(err);
@@ -683,7 +683,7 @@ async function saveCloudData(){
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({base:baseItems,measurements,note:getNoteValue()})
     });
-    setSyncStatus('시트 저장 완료', 'ok');
+    setSyncStatus('동기화 완료', 'ok');
   }catch(err){
     setSyncStatus('저장 실패', 'err');
     console.warn(err);
@@ -1488,7 +1488,7 @@ function initApp(){
     noteEl.value=(saved!==null && saved!==undefined)?saved:DEFAULT_NOTE;
     store.set('cbm_note', noteEl.value);
   }
-  if(SERVER_BASE && SERVER_MEAS) setSyncStatus('시트 데이터 로드됨', 'ok');
+  if(SERVER_BASE && SERVER_MEAS) setSyncStatus('동기화 완료', 'ok');
   renderKPI();
   setStatus('all');
   setCmpStatus('all');
@@ -1575,7 +1575,7 @@ else window.addEventListener('load', initApp);
     if(byId('compareTb')) byId('compareTb').innerHTML=rows.join('');
     if(byId('compareInfo')) byId('compareInfo').textContent=rows.length+'건 비교 · 오류 '+err+'건';
     if(byId('syncStatus')) {
-      byId('syncStatus').textContent=server.base&&server.measurements?'시트 데이터 표시 중':'기본 데이터 표시 중';
+      byId('syncStatus').textContent=server.base&&server.measurements?'동기화 완료':'기본 데이터 표시 중';
       byId('syncStatus').className='sync-chip '+(server.base&&server.measurements?'ok':'warn');
     }
   }
@@ -1607,7 +1607,7 @@ else window.addEventListener('load', initApp);
     try{
       var payload=JSON.stringify({base:compatBase,measurements:compatMeas,note:byId('kpi-note')?byId('kpi-note').value:''});
       fetch(window.CBM_SYNC_APP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:payload});
-      if(byId('syncStatus')){ byId('syncStatus').textContent='시트 저장 완료'; byId('syncStatus').className='sync-chip ok'; }
+      if(byId('syncStatus')){ byId('syncStatus').textContent='동기화 완료'; byId('syncStatus').className='sync-chip ok'; }
     }catch(e){}
   }
   window.switchTab=function(t){
@@ -1752,4 +1752,5 @@ else window.addEventListener('load', initApp);
 </script>
 </body>
 </html>
+
 
