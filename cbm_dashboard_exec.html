@@ -1511,5 +1511,71 @@ function initApp(){
 if(document.readyState==='complete') initApp();
 else window.addEventListener('load', initApp);
 </script>
+<script>
+(function(){
+  var FALLBACK_BASE = [{"id":1781758854473,"code":"CDB0082","color":"RCN","name":"2단 도어","w":795,"d":470,"h":70,"kg":6,"createdAt":"2026-06-18"},{"id":1781758899298,"code":"CEC0083S","color":"WW","name":"3단 상부선반","w":925,"d":470,"h":60,"kg":5,"createdAt":"2026-06-18"},{"id":1781758929951,"code":"FGP0302","color":"RCNBGM","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"},{"id":1781758950613,"code":"FGP0302","color":"WW","name":"이동서랍 몸통","w":480,"d":375,"h":470,"kg":13,"createdAt":"2026-06-18"}];
+  var FALLBACK_MEAS = [{"id":1781759248597,"code":"CDB0082","baseId":1781758854473,"date":"2026-06-17","by":"배훈기","w":755,"d":435,"h":40,"kg":6.2,"memo":""},{"id":1781759280179,"code":"CEC0083S","baseId":1781758899298,"date":"2026-06-17","by":"배훈기","w":885,"d":440,"h":40,"kg":5.6,"memo":""},{"id":1781759297786,"code":"FGP0302","baseId":1781758929951,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""},{"id":1781759315793,"code":"FGP0302","baseId":1781758950613,"date":"2026-06-17","by":"배훈기","w":450,"d":350,"h":460,"kg":12.5,"memo":""}];
+  function byId(id){ return document.getElementById(id); }
+  function cbm(x){ return (Number(x.w||0)/1000)*(Number(x.d||0)/1000)*(Number(x.h||0)/1000); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function getServer(){
+    var el=byId('server-data');
+    if(!el) return null;
+    var raw=(el.textContent||'').trim();
+    if(!raw || raw==='__SERVER_DATA_JSON__' || raw.indexOf('<?')===0) return null;
+    try { return JSON.parse(raw); } catch(e) { return null; }
+  }
+  function latestFor(base, meas){
+    var best=null;
+    for(var i=0;i<meas.length;i++){
+      if(meas[i].code===base.code && (!best || Number(meas[i].id||0)>Number(best.id||0))) best=meas[i];
+    }
+    return best;
+  }
+  function diffCell(baseVal, measVal, digits){
+    var d=Number(measVal||0)-Number(baseVal||0);
+    var p=Number(baseVal)>0 ? d/Number(baseVal)*100 : 0;
+    var val=digits ? d.toFixed(digits) : String(Math.round(d));
+    var cls=Math.abs(p)<=5?'diff-ok':'diff-up';
+    return '<td class="'+cls+'" style="font-weight:600;">'+(d>=0?'+':'')+val+'<br><span style="font-size:10px;font-weight:400;color:'+(Math.abs(p)<=5?'var(--g400)':'var(--red)')+';">('+(p>=0?'+':'')+p.toFixed(1)+'%)</span></td>';
+  }
+  function renderCompat(){
+    var server=getServer() || {};
+    var base = server.base && server.base.length ? server.base : FALLBACK_BASE;
+    var meas = server.measurements && server.measurements.length ? server.measurements : FALLBACK_MEAS;
+    var total=0, ok=0, err=0, rows=[];
+    for(var i=0;i<base.length;i++){
+      var b=base[i], m=latestFor(b, meas);
+      if(!m) continue;
+      total++;
+      var bC=cbm(b), mC=cbm(m);
+      var pcts=[
+        b.w>0?Math.abs((m.w-b.w)/b.w*100):0,
+        b.d>0?Math.abs((m.d-b.d)/b.d*100):0,
+        b.h>0?Math.abs((m.h-b.h)/b.h*100):0,
+        b.kg>0?Math.abs((m.kg-b.kg)/b.kg*100):0,
+        bC>0?Math.abs((mC-bC)/bC*100):0
+      ];
+      var maxP=Math.max.apply(Math,pcts);
+      var cls=maxP<=5?'row-ok':maxP<=10?'row-warn':'row-err';
+      if(maxP<=5) ok++; else err++;
+      var judge=maxP<=5?'<span class="sp sp-ok">정상</span>':maxP<=10?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
+      rows.push('<tr class="'+cls+'"><td style="font-weight:600;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td style="color:var(--g400);font-size:12px;">'+esc(m.date)+'</td></tr>');
+    }
+    if(byId('kpi-total')) byId('kpi-total').textContent=total;
+    if(byId('kpi-ok')) byId('kpi-ok').textContent=ok;
+    if(byId('kpi-err')) byId('kpi-err').textContent=err;
+    if(byId('compareTb')) byId('compareTb').innerHTML=rows.join('');
+    if(byId('compareInfo')) byId('compareInfo').textContent=rows.length+'건 비교 · 오류 '+err+'건';
+    if(byId('syncStatus')) {
+      byId('syncStatus').textContent=server.base&&server.measurements?'시트 데이터 표시 중':'기본 데이터 표시 중';
+      byId('syncStatus').className='sync-chip '+(server.base&&server.measurements?'ok':'warn');
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderCompat);
+  else renderCompat();
+  setTimeout(renderCompat, 500);
+})();
+</script>
 </body>
 </html>
