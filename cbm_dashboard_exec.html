@@ -1587,7 +1587,7 @@ else window.addEventListener('load', initApp);
     var rows=[];
     for(var i=0;i<compatBase.length;i++){
       var b=compatBase[i], c=cbm(b);
-      rows.push('<tr class="clickable" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')"><td style="font-weight:600;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td><td>'+esc(b.w)+'</td><td>'+esc(b.d)+'</td><td>'+esc(b.h)+'</td><td><span class="cbm-pill">'+c.toFixed(3)+'</span></td><td>'+Number(b.kg||0).toFixed(1)+'</td><td style="color:var(--g400);">더블클릭: 상세</td></tr>');
+      rows.push('<tr class="clickable" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')"><td style="font-weight:600;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td><td>'+esc(b.w)+'</td><td>'+esc(b.d)+'</td><td>'+esc(b.h)+'</td><td><span class="cbm-pill">'+c.toFixed(3)+'</span></td><td>'+Number(b.kg||0).toFixed(1)+'</td><td><button class="act-btn" onclick="event.stopPropagation();openBaseForm(\''+attr(b.id)+'\')" title="수정">✎</button> <button class="act-btn del" onclick="event.stopPropagation();delBase(\''+attr(b.id)+'\')" title="삭제">✕</button></td></tr>');
     }
     tb.innerHTML=rows.join('');
     if(byId('baseInfo')) byId('baseInfo').textContent=rows.length+'건';
@@ -1599,7 +1599,7 @@ else window.addEventListener('load', initApp);
     for(var i=0;i<compatMeas.length;i++){
       var m=compatMeas[i], b=null;
       for(var j=0;j<compatBase.length;j++){ if(compatBase[j].code===m.code){ b=compatBase[j]; break; } }
-      rows.push('<tr><td>'+esc(m.date)+'</td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td><span class="sp sp-ok">저장</span></td><td>'+esc(m.by||'')+'</td><td>'+esc(m.memo||'')+'</td></tr>');
+      rows.push('<tr><td>'+esc(m.date)+'</td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td><span class="sp sp-ok">저장</span></td><td>'+esc(m.by||'')+'</td><td><button class="act-btn" onclick="openMeasForm(\''+attr(m.id)+'\')" title="수정">✎</button> <button class="act-btn del" onclick="delMeas(\''+attr(m.id)+'\')" title="삭제">✕</button></td></tr>');
     }
     tb.innerHTML=rows.join('');
     if(byId('measInfo')) byId('measInfo').textContent=rows.length+'건';
@@ -1660,16 +1660,71 @@ else window.addEventListener('load', initApp);
     byId('detailModal').style.display='block';
   };
   window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; } };
-  window.resetBaseForm=function(){ ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); };
-  window.resetMeasForm=function(){ ['mf_code','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); };
+  window.resetBaseForm=function(){ compatBaseEditId=null; ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 입력'; if(byId('bBtnTxt')) byId('bBtnTxt').textContent='저장'; };
+  window.resetMeasForm=function(){ compatMeasEditId=null; ['mf_code','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력'; };
   window.bLP=function(){};
   window.mLP=function(){};
+  var compatBaseEditId = null;
+  var compatMeasEditId = null;
+  window.openBaseForm=function(id){
+    var b=null;
+    for(var i=0;i<compatBase.length;i++){ if(String(compatBase[i].id)===String(id)){ b=compatBase[i]; break; } }
+    if(!b) return;
+    compatBaseEditId=b.id;
+    switchTab('base');
+    if(byId('bf_code')) byId('bf_code').value=b.code||'';
+    if(byId('bf_color')) byId('bf_color').value=b.color||'';
+    if(byId('bf_name')) byId('bf_name').value=b.name||'';
+    if(byId('bf_w')) byId('bf_w').value=b.w||'';
+    if(byId('bf_d')) byId('bf_d').value=b.d||'';
+    if(byId('bf_h')) byId('bf_h').value=b.h||'';
+    if(byId('bf_kg')) byId('bf_kg').value=b.kg||'';
+    if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 수정';
+    if(byId('bBtnTxt')) byId('bBtnTxt').textContent='수정 저장';
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+  window.delBase=function(id){
+    var b=null;
+    for(var i=0;i<compatBase.length;i++){ if(String(compatBase[i].id)===String(id)){ b=compatBase[i]; break; } }
+    if(!b || !confirm('"'+b.code+'" 삭제할까요?')) return;
+    compatBase=compatBase.filter(function(x){ return String(x.id)!==String(id); });
+    compatMeas=compatMeas.filter(function(x){ return String(x.baseId)!==String(id); });
+    renderBaseCompat(); renderMeasCompat(); renderCompat(); syncCompat();
+  };
+  window.openMeasForm=function(id){
+    var m=null;
+    for(var i=0;i<compatMeas.length;i++){ if(String(compatMeas[i].id)===String(id)){ m=compatMeas[i]; break; } }
+    if(!m) return;
+    compatMeasEditId=m.id;
+    switchTab('meas');
+    if(byId('mf_code')) byId('mf_code').value=m.code||'';
+    if(byId('mf_date')) byId('mf_date').value=m.date||'';
+    if(byId('mf_by')) byId('mf_by').value=m.by||'';
+    if(byId('mf_w')) byId('mf_w').value=m.w||'';
+    if(byId('mf_d')) byId('mf_d').value=m.d||'';
+    if(byId('mf_h')) byId('mf_h').value=m.h||'';
+    if(byId('mf_kg')) byId('mf_kg').value=m.kg||'';
+    var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 수정';
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
+  window.delMeas=function(id){
+    if(!confirm('이 실측 기록을 삭제할까요?')) return;
+    compatMeas=compatMeas.filter(function(x){ return String(x.id)!==String(id); });
+    renderMeasCompat(); renderCompat(); syncCompat();
+  };
   window.saveBase=function(){
     var code=(byId('bf_code')&&byId('bf_code').value||'').trim().toUpperCase();
     var name=(byId('bf_name')&&byId('bf_name').value||'').trim();
     var w=Number(byId('bf_w')&&byId('bf_w').value), d=Number(byId('bf_d')&&byId('bf_d').value), h=Number(byId('bf_h')&&byId('bf_h').value), kg=Number(byId('bf_kg')&&byId('bf_kg').value);
     if(!code||!name||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('필수 항목을 입력해 주세요.'); return; }
-    compatBase.push({id:Date.now(),code:code,color:(byId('bf_color')&&byId('bf_color').value||'').trim(),name:name,w:w,d:d,h:h,kg:kg,createdAt:new Date().toISOString().slice(0,10)});
+    if(compatBaseEditId!==null){
+      for(var i=0;i<compatBase.length;i++){ if(String(compatBase[i].id)===String(compatBaseEditId)){ compatBase[i]={id:compatBase[i].id,code:code,color:(byId('bf_color')&&byId('bf_color').value||'').trim(),name:name,w:w,d:d,h:h,kg:kg,createdAt:compatBase[i].createdAt||new Date().toISOString().slice(0,10)}; break; } }
+      compatBaseEditId=null;
+    } else {
+      compatBase.push({id:Date.now(),code:code,color:(byId('bf_color')&&byId('bf_color').value||'').trim(),name:name,w:w,d:d,h:h,kg:kg,createdAt:new Date().toISOString().slice(0,10)});
+    }
+    if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 입력';
+    if(byId('bBtnTxt')) byId('bBtnTxt').textContent='저장';
     resetBaseForm(); renderBaseCompat(); renderCompat(); syncCompat();
   };
   window.saveMeas=function(){
@@ -1678,7 +1733,12 @@ else window.addEventListener('load', initApp);
     var w=Number(byId('mf_w')&&byId('mf_w').value), d=Number(byId('mf_d')&&byId('mf_d').value), h=Number(byId('mf_h')&&byId('mf_h').value), kg=Number(byId('mf_kg')&&byId('mf_kg').value);
     if(!code||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('필수 항목을 입력해 주세요.'); return; }
     var baseId=null; for(var i=0;i<compatBase.length;i++){ if(compatBase[i].code===code){ baseId=compatBase[i].id; break; } }
-    compatMeas.push({id:Date.now(),code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:''});
+    if(compatMeasEditId!==null){
+      for(var j=0;j<compatMeas.length;j++){ if(String(compatMeas[j].id)===String(compatMeasEditId)){ compatMeas[j]={id:compatMeas[j].id,code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:compatMeas[j].memo||''}; break; } }
+      compatMeasEditId=null;
+    } else {
+      compatMeas.push({id:Date.now(),code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:''});
+    }
     resetMeasForm(); renderMeasCompat(); renderCompat(); syncCompat();
   };
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderCompat);
