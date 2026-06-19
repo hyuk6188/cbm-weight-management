@@ -212,6 +212,7 @@ tr.row-err:hover td{background:#FEE2E2;} tr.row-warn:hover td{background:#FEF3C7
 .act-btn{width:26px;height:26px;border-radius:5px;border:1px solid var(--g200);background:var(--g50);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:17px;transition:all .15s;}
 .act-btn:hover{background:var(--g100);}
 .act-btn.del:hover{background:var(--red-lt);color:var(--red);border-color:#FCA5A5;}
+.date-pill{display:inline-flex;align-items:center;justify-content:center;min-width:118px;padding:5px 12px;border:1px solid var(--g200);border-radius:999px;background:#F8FAFC;color:#64748B;font-size:18px;line-height:1.15;white-space:nowrap;}
 .tbl-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--g50);border-top:1px solid var(--g200);border-radius:0 0 10px 10px;font-size:19px;color:var(--g400);}
 
 /* DIFF */
@@ -558,6 +559,17 @@ function rowsToObjects(rows){
   });
 }
 function toNumber(v){ const n=parseFloat(String(v).replace(/,/g,'')); return Number.isFinite(n)?n:0; }
+function fmtDate(v){
+  if(!v) return '';
+  const s=String(v).trim();
+  const direct=s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if(direct) return direct[1];
+  const d=new Date(s);
+  if(!Number.isNaN(d.getTime())){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  return s;
+}
 function normalizeBaseRows(rows){
   return rowsToObjects(rows).map((r,i)=>({
     id: toNumber(r.id)||Date.now()+i,
@@ -573,7 +585,7 @@ function normalizeMeasurementRows(rows){
     id: toNumber(r.id)||Date.now()+i,
     code: String(r.code||'').trim(),
     baseId: toNumber(r.baseId)||null,
-    date: String(r.date||new Date().toISOString().slice(0,10)).trim(),
+    date: fmtDate(r.date||new Date().toISOString().slice(0,10)),
     by: String(r.by||'').trim(),
     w: toNumber(r.w), d: toNumber(r.d), h: toNumber(r.h), kg: toNumber(r.kg),
     memo: String(r.memo||'').trim()
@@ -963,7 +975,7 @@ function openMeasForm(id){
   measEditId=id;
   const m=measurements.find(x=>x.id===id); if(!m) return;
   document.getElementById('mf_code').value=m.code;
-  document.getElementById('mf_date').value=m.date;
+  document.getElementById('mf_date').value=fmtDate(m.date);
   document.getElementById('mf_by').value=m.by||'';
   document.getElementById('mf_w').value=m.w;
   document.getElementById('mf_d').value=m.d;
@@ -1027,7 +1039,7 @@ function renderMeas(){
     const base=baseItems.find(i=>i.id===m.baseId)||baseItems.find(i=>i.code===m.code)||{};
     const c=calcCBM(m.w,m.d,m.h);
     return`<tr class="${m.id===measEditId?'editing':''}">
-      <td style="color:var(--g400);font-size:17px;">${m.date}</td>
+      <td><span class="date-pill">${fmtDate(m.date)}</span></td>
       <td style="font-weight:600;">${m.code}</td>
       <td>${base.color||'—'}</td>
       <td>${base.name||'—'}</td>
@@ -1067,8 +1079,9 @@ function renderCompare(){
     const mList=measurements.filter(m=>m.code===base.code).sort((a,b)=>b.id-a.id);
     if(!mList.length) return;
     const m=mList[0];
-    if(from && m.date < from) return;
-    if(to   && m.date > to)   return;
+    const mDate=fmtDate(m.date);
+    if(from && mDate < from) return;
+    if(to   && mDate > to)   return;
     const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
     const pcts=[
       base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
@@ -1097,7 +1110,7 @@ function renderCompare(){
       <td style="font-weight:600;cursor:pointer;">${base.code}</td><td>${base.color||'—'}</td><td>${base.name}</td>
       ${dc(base.w,m.w)}${dc(base.d,m.d)}${dc(base.h,m.h)}
       ${dcCbm(bC,mC)}${dc(base.kg,m.kg,1)}
-      <td>${judge}</td><td style="color:var(--g400);font-size:17px;">${m.date}</td>
+      <td>${judge}</td><td><span class="date-pill">${mDate}</span></td>
     </tr>`});
   });
   rows.sort((a,b)=>['row-err','row-warn','row-ok'].indexOf(a.cls)-['row-err','row-warn','row-ok'].indexOf(b.cls));
@@ -1121,8 +1134,9 @@ function exportCompareExcel(){
     const mList=measurements.filter(m=>m.code===base.code).sort((a,b)=>b.id-a.id);
     if(!mList.length) return;
     const m=mList[0];
-    if(from && m.date<from) return;
-    if(to   && m.date>to)   return;
+    const mDate=fmtDate(m.date);
+    if(from && mDate<from) return;
+    if(to   && mDate>to)   return;
     const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
     const maxP=Math.max(
       base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
@@ -1132,7 +1146,7 @@ function exportCompareExcel(){
       bC>0?Math.abs((mC-bC)/bC*100):0
     );
     const judge=maxP<=tol?'정상':maxP<=tol*2?'경고':'오류';
-    rows.push([base.code,base.color||'',base.name,Math.round(m.w-base.w),Math.round(m.d-base.d),Math.round(m.h-base.h),parseFloat((mC-bC).toFixed(3)),parseFloat((m.kg-base.kg).toFixed(1)),judge,m.date]);
+    rows.push([base.code,base.color||'',base.name,Math.round(m.w-base.w),Math.round(m.d-base.d),Math.round(m.h-base.h),parseFloat((mC-bC).toFixed(3)),parseFloat((m.kg-base.kg).toFixed(1)),judge,mDate]);
   });
   if(rows.length<=1){alert('내려받을 데이터가 없습니다.');return;}
   const wb=XLSX.utils.book_new();
@@ -1173,7 +1187,7 @@ function exportMeasCSV(){
   const h=['측정일','제품코드','제품명칭','측정자','가로(mm)','세로(mm)','높이(mm)','중량(kg)','CBM(m³)','메모'];
   const r=measurements.map(m=>{
     const b=baseItems.find(i=>i.code===m.code);
-    return[m.date,m.code,b?b.name:'',m.by||'',m.w,m.d,m.h,m.kg.toFixed(3),calcCBM(m.w,m.d,m.h).toFixed(6),m.memo||''];
+    return[fmtDate(m.date),m.code,b?b.name:'',m.by||'',m.w,m.d,m.h,m.kg.toFixed(3),calcCBM(m.w,m.d,m.h).toFixed(6),m.memo||''];
   });
   dlCSV([h,...r],'cbm_meas_');
 }
@@ -1214,7 +1228,7 @@ function downloadMeasExcel(){
   if(!measurements.length){alert('실측 데이터가 없습니다.\n먼저 실측 데이터를 입력해 주세요.');return;}
   const wb=XLSX.utils.book_new();
   const rows=[['측정일','제품코드','측정자','가로(mm)','세로(mm)','높이(mm)','중량(kg)']];
-  measurements.forEach(m=>rows.push([m.date,m.code,m.by||'',m.w,m.d,m.h,m.kg]));
+  measurements.forEach(m=>rows.push([fmtDate(m.date),m.code,m.by||'',m.w,m.d,m.h,m.kg]));
   const ws=XLSX.utils.aoa_to_sheet(rows);
   ws['!cols']=[{wch:14},{wch:14},{wch:10},{wch:12},{wch:12},{wch:12},{wch:12}];
   XLSX.utils.book_append_sheet(wb,ws,'실측데이터');
@@ -1264,7 +1278,7 @@ function importMeasExcel(e){
       const get=(row,...keys)=>{for(const k of keys){if(row[k]!==undefined&&row[k]!=='') return row[k];} return '';};
       const imp=rows.map((row,i)=>({
         id: Date.now()+i,
-        date: String(get(row,'측정일','date','Date')||new Date().toISOString().slice(0,10)),
+        date: fmtDate(get(row,'측정일','date','Date')||new Date().toISOString().slice(0,10)),
         code: String(get(row,'제품코드','code','Code')||''),
         by:   String(get(row,'측정자','by','')||''),
         w:    parseFloat(get(row,'가로','가로(mm)','w'))||0,
@@ -1293,7 +1307,7 @@ function importMeasCSV(e){
       const c=lines[i].split(',').map(v=>v.replace(/^"|"$/g,'').trim());
       if(c.length<7) continue;
       // 헤더: 측정일,제품코드,제품명칭,측정자,가로,세로,높이,중량,CBM,메모
-      imp.push({id:Date.now()+i,date:c[0],code:c[1],by:c[3]||'',w:parseFloat(c[4])||0,d:parseFloat(c[5])||0,h:parseFloat(c[6])||0,kg:parseFloat(c[7])||0,memo:c[9]||''});
+      imp.push({id:Date.now()+i,date:fmtDate(c[0]),code:c[1],by:c[3]||'',w:parseFloat(c[4])||0,d:parseFloat(c[5])||0,h:parseFloat(c[6])||0,kg:parseFloat(c[7])||0,memo:c[9]||''});
     }
     if(!imp.length){alert('유효한 데이터가 없습니다.');return;}
     if(confirm(`${imp.length}건을 실측 데이터에 추가할까요?`)){measurements=[...measurements,...imp];persistMeas();renderKPI();renderCompare();}
@@ -1368,7 +1382,7 @@ function showDetail(code, baseId){
     const autoMemo=all.length?(dimAll.join(', ')+(etcAll.length?`<br>${etcAll.join(', ')}`:'')):' 차이 없음';
     function dc(bv,mv){const d=mv-bv,p=bv>0?d/bv*100:0,ok=Math.abs(p)<=tol;return`<span class="${ok?'d-ok':'d-err'}">(${p>=0?'+':''}${p.toFixed(1)}%)</span>`;}
     return`<tr>
-      <td>${m.date}</td><td>${m.by||'—'}</td>
+      <td><span class="date-pill">${fmtDate(m.date)}</span></td><td>${m.by||'—'}</td>
       <td>${m.w}<br><small>${dc(base.w,m.w)}</small></td>
       <td>${m.d}<br><small>${dc(base.d,m.d)}</small></td>
       <td>${m.h}<br><small>${dc(base.h,m.h)}</small></td>
@@ -1399,7 +1413,7 @@ function showDetail(code, baseId){
 
           ${lv?`
           <!-- ① 최신 실측 비교 카드 -->
-          <div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">(${lv.date} · ${lv.by||'측정자 미기재'} · 허용오차 ±${tol}%)</span></div>
+          <div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">(${fmtDate(lv.date)} · ${lv.by||'측정자 미기재'} · 허용오차 ±${tol}%)</span></div>
           <div class="cmp-cards">
             ${cmpCard('CBM','m³',bC,calcCBM(lv.w,lv.d,lv.h),3)}
             ${cmpCard('중량','kg',base.kg,lv.kg,1)}
@@ -1533,6 +1547,19 @@ else window.addEventListener('load', initApp);
   function cbm(x){ return (Number(x.w||0)/1000)*(Number(x.d||0)/1000)*(Number(x.h||0)/1000); }
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
   function attr(v){ return esc(v).replace(/`/g,'&#96;'); }
+  function fmtDateCompat(v){
+    if(!v) return '';
+    var s=String(v).trim();
+    var direct=s.match(/^(\d{4}-\d{2}-\d{2})/);
+    if(direct) return direct[1];
+    var d=new Date(s);
+    if(!isNaN(d.getTime())){
+      var mm=String(d.getMonth()+1); if(mm.length<2) mm='0'+mm;
+      var dd=String(d.getDate()); if(dd.length<2) dd='0'+dd;
+      return d.getFullYear()+'-'+mm+'-'+dd;
+    }
+    return s;
+  }
   var compatBase = [];
   var compatMeas = [];
   var compatLoaded = false;
@@ -1583,7 +1610,7 @@ else window.addEventListener('load', initApp);
       var cls=maxP<=5?'row-ok':maxP<=10?'row-warn':'row-err';
       if(maxP<=5) ok++; else err++;
       var judge=maxP<=5?'<span class="sp sp-ok">정상</span>':maxP<=10?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
-      rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td style="color:var(--g400);font-size:17px;">'+esc(m.date)+'</td></tr>');
+      rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td></tr>');
     }
     if(byId('kpi-total')) byId('kpi-total').textContent=total;
     if(byId('kpi-ok')) byId('kpi-ok').textContent=ok;
@@ -1613,7 +1640,7 @@ else window.addEventListener('load', initApp);
     for(var i=0;i<compatMeas.length;i++){
       var m=compatMeas[i], b=null;
       for(var j=0;j<compatBase.length;j++){ if(compatBase[j].code===m.code){ b=compatBase[j]; break; } }
-      rows.push('<tr><td>'+esc(m.date)+'</td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td><span class="sp sp-ok">저장</span></td><td>'+esc(m.by||'')+'</td><td><button class="act-btn" onclick="openMeasForm(\''+attr(m.id)+'\')" title="수정">✎</button> <button class="act-btn del" onclick="delMeas(\''+attr(m.id)+'\')" title="삭제">✕</button></td></tr>');
+      rows.push('<tr><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td><span class="sp sp-ok">저장</span></td><td>'+esc(m.by||'')+'</td><td><button class="act-btn" onclick="openMeasForm(\''+attr(m.id)+'\')" title="수정">✎</button> <button class="act-btn del" onclick="delMeas(\''+attr(m.id)+'\')" title="삭제">✕</button></td></tr>');
     }
     tb.innerHTML=rows.join('');
     if(byId('measInfo')) byId('measInfo').textContent=rows.length+'건';
@@ -1698,9 +1725,9 @@ else window.addEventListener('load', initApp);
       for(var k=0;k<vals.length;k++){ var p=Number(vals[k])>0?(Number(mvs[k]||0)-Number(vals[k]||0))/Number(vals[k])*100:0; maxP=Math.max(maxP,Math.abs(p)); if(Math.abs(p)>0) memo.push(labels[k]+'('+(p>=0?'+':'')+p.toFixed(1)+'%)'); }
       var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':maxP<=tol*2?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
       function dc(bv,mv){ return '<span class="'+clsPct(bv,mv)+'">('+pct(bv,mv)+')</span>'; }
-      return '<tr><td>'+esc(m.date)+'</td><td>'+esc(m.by||'-')+'</td><td>'+esc(m.w)+'<br><small>'+dc(b.w,m.w)+'</small></td><td>'+esc(m.d)+'<br><small>'+dc(b.d,m.d)+'</small></td><td>'+esc(m.h)+'<br><small>'+dc(b.h,m.h)+'</small></td><td>'+Number(m.kg||0).toFixed(1)+'<br><small>'+dc(b.kg,m.kg)+'</small></td><td><span class="cbm-pill">'+mC.toFixed(3)+'</span><br><small>'+dc(bC,mC)+'</small></td><td>'+judge+'</td><td style="font-size:16px;color:'+(maxP>tol?'var(--red)':'var(--teal)')+';">'+(memo.length?memo.join('<br>'):'차이 없음')+'</td></tr>';
+      return '<tr><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td>'+esc(m.by||'-')+'</td><td>'+esc(m.w)+'<br><small>'+dc(b.w,m.w)+'</small></td><td>'+esc(m.d)+'<br><small>'+dc(b.d,m.d)+'</small></td><td>'+esc(m.h)+'<br><small>'+dc(b.h,m.h)+'</small></td><td>'+Number(m.kg||0).toFixed(1)+'<br><small>'+dc(b.kg,m.kg)+'</small></td><td><span class="cbm-pill">'+mC.toFixed(3)+'</span><br><small>'+dc(bC,mC)+'</small></td><td>'+judge+'</td><td style="font-size:16px;color:'+(maxP>tol?'var(--red)':'var(--teal)')+';">'+(memo.length?memo.join('<br>'):'차이 없음')+'</td></tr>';
     }
-    var lv=latest, hex=colorHex(b.color), latestBody=lv?'<div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">('+esc(lv.date)+' · '+esc(lv.by||'측정자 미기재')+' · 허용오차 ±'+tol+'%)</span></div><div class="cmp-cards">'+cmpCard('CBM','m³',bC,cbm(lv),3)+cmpCard('중량','kg',b.kg,lv.kg,1)+'</div><div class="detail-sec" style="margin:14px 0 6px;">치수 및 중량 비교 (mm/kg)</div><table class="dtbl" style="margin-bottom:14px;"><thead><tr><th>항목</th><th>기준</th><th>실측</th><th>차이(mm)</th><th>차이율</th></tr></thead><tbody>'+dimRow('가로',b.w,lv.w,0)+dimRow('세로',b.d,lv.d,0)+dimRow('높이',b.h,lv.h,0)+dimRow('중량(kg)',b.kg,lv.kg,1)+'</tbody></table>':'<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:17px;">실측 데이터가 없습니다.</div>';
+    var lv=latest, hex=colorHex(b.color), latestBody=lv?'<div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">('+esc(fmtDateCompat(lv.date))+' · '+esc(lv.by||'측정자 미기재')+' · 허용오차 ±'+tol+'%)</span></div><div class="cmp-cards">'+cmpCard('CBM','m³',bC,cbm(lv),3)+cmpCard('중량','kg',b.kg,lv.kg,1)+'</div><div class="detail-sec" style="margin:14px 0 6px;">치수 및 중량 비교 (mm/kg)</div><table class="dtbl" style="margin-bottom:14px;"><thead><tr><th>항목</th><th>기준</th><th>실측</th><th>차이(mm)</th><th>차이율</th></tr></thead><tbody>'+dimRow('가로',b.w,lv.w,0)+dimRow('세로',b.d,lv.d,0)+dimRow('높이',b.h,lv.h,0)+dimRow('중량(kg)',b.kg,lv.kg,1)+'</tbody></table>':'<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:17px;">실측 데이터가 없습니다.</div>';
     var hist='<div class="detail-sec" style="margin-bottom:6px;">전체 실측 이력</div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th><th>메모</th></tr></thead><tbody>';
     for(i=0;i<list.length;i++) hist+=histRow(list[i]);
     hist+=(list.length?'':'<tr><td colspan="9" class="empty-state" style="padding:16px;"><p>실측 데이터 없음</p></td></tr>')+'</tbody></table></div>';
@@ -1746,7 +1773,7 @@ else window.addEventListener('load', initApp);
     compatMeasEditId=m.id;
     switchTab('meas');
     if(byId('mf_code')) byId('mf_code').value=m.code||'';
-    if(byId('mf_date')) byId('mf_date').value=m.date||'';
+    if(byId('mf_date')) byId('mf_date').value=fmtDateCompat(m.date)||'';
     if(byId('mf_by')) byId('mf_by').value=m.by||'';
     if(byId('mf_w')) byId('mf_w').value=m.w||'';
     if(byId('mf_d')) byId('mf_d').value=m.d||'';
