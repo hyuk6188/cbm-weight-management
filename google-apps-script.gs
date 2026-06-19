@@ -7,9 +7,9 @@ function doGet(e) {
   if (params.action === 'load' || params.callback) {
     return jsonResponse(loadData_(), params.callback);
   }
-  var template = HtmlService.createTemplateFromFile('cbm_dashboard_exec');
-  template.dataJson = JSON.stringify(loadData_());
-  var output = template.evaluate();
+  var html = HtmlService.createHtmlOutputFromFile('cbm_dashboard_exec').getContent();
+  html = html.replace('__SERVER_DATA_JSON__', JSON.stringify(loadData_()));
+  var output = HtmlService.createHtmlOutput(html);
   output.setTitle('CBM Dashboard');
   output.setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   return output;
