@@ -15,6 +15,9 @@ if (location.protocol === 'file:') {
 </script>
 <script id="server-data" type="application/json">__SERVER_DATA_JSON__</script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ko.js"></script>
 <style>
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 :root {
@@ -172,6 +175,17 @@ tr.clickable:hover td{background:var(--g50);cursor:pointer;}
 #mf_date{height:46px;min-width:220px;padding:0 15px;font-size:21px;font-weight:500;letter-spacing:.2px;background:white;cursor:pointer;}
 #mf_date::-webkit-calendar-picker-indicator{width:23px;height:23px;padding:5px;cursor:pointer;opacity:.8;}
 #mf_date:hover{border-color:#B8C4D8;}
+.flatpickr-calendar.large-date-calendar{width:392px;padding:10px;border:1px solid var(--g200);border-radius:14px;box-shadow:0 14px 38px rgba(15,23,42,.2);font-family:'Pretendard',sans-serif;}
+.large-date-calendar .flatpickr-rContainer,.large-date-calendar .flatpickr-days,.large-date-calendar .dayContainer{width:370px;min-width:370px;max-width:370px;}
+.large-date-calendar .flatpickr-day{flex-basis:14.2857%;max-width:14.2857%;height:48px;line-height:48px;font-size:17px;font-weight:500;border-radius:10px;}
+.large-date-calendar .flatpickr-weekdays{height:42px;}
+.large-date-calendar span.flatpickr-weekday{font-size:16px;color:var(--g600);font-weight:700;}
+.large-date-calendar .flatpickr-months{height:54px;}
+.large-date-calendar .flatpickr-months .flatpickr-month{height:54px;}
+.large-date-calendar .flatpickr-current-month{padding-top:12px;font-size:20px;font-weight:700;}
+.large-date-calendar .flatpickr-current-month .flatpickr-monthDropdown-months,.large-date-calendar .flatpickr-current-month input.cur-year{font-size:20px;font-weight:700;}
+.large-date-calendar .flatpickr-months .flatpickr-prev-month,.large-date-calendar .flatpickr-months .flatpickr-next-month{top:10px;width:44px;height:44px;padding:12px;}
+.large-date-calendar .flatpickr-day.selected{background:var(--blue);border-color:var(--blue);}
 .fp-field textarea{height:66px;padding:9px 12px;resize:vertical;}
 .fp-field input:focus,.fp-field select:focus,.fp-field textarea:focus{border-color:var(--blue);background:white;}
 .fp-field input.err{border-color:#F87171;}
@@ -328,7 +342,7 @@ footer strong{color:var(--g600);}
           <input id="mf_code" type="text" placeholder="제품코드 입력..." oninput="clearE('mf_code','me_code');mLP();" style="text-transform:uppercase;">
           <span class="emsg" id="me_code">제품코드를 입력하세요</span>
         </div>
-        <div class="fp-field"><label>측정일 *</label><input id="mf_date" type="date"><span class="emsg" id="me_date">날짜를 입력하세요</span></div>
+        <div class="fp-field"><label>측정일 *</label><input id="mf_date" type="text" placeholder="YYYY-MM-DD" readonly><span class="emsg" id="me_date">날짜를 입력하세요</span></div>
         <div class="fp-field"><label>측정자</label>
           <select id="mf_by">
             <option value="">-- 선택 --</option>
@@ -1530,6 +1544,26 @@ function startWeekAutoRefresh(){
 
 const DEFAULT_NOTE='1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성\n2. CBM 자동구성 DW+박스형태+보정값 로직 수정 필요\n3. 박스업체 로트별 재단 치수 및 괘선 위치 상이';
 
+function initLargeDatePicker(){
+  const input=document.getElementById('mf_date');
+  if(!input || !window.flatpickr || input._flatpickr) return;
+  flatpickr(input,{
+    locale:(flatpickr.l10ns && flatpickr.l10ns.ko) || 'default',
+    dateFormat:'Y-m-d',
+    defaultDate:input.value || new Date(),
+    disableMobile:true,
+    allowInput:false,
+    clickOpens:true,
+    onReady:function(selectedDates,dateStr,instance){
+      instance.calendarContainer.classList.add('large-date-calendar');
+    },
+    onOpen:function(selectedDates,dateStr,instance){
+      const current=instance.input.value;
+      if(current) instance.setDate(current,false,'Y-m-d');
+    }
+  });
+}
+
 function initApp(){
   if(redirectToAppsScriptIfNeeded()) return;
   ensureSeedData();
@@ -1545,6 +1579,7 @@ function initApp(){
   setCmpStatus('all');
   updateCodeSel();
   document.getElementById('mf_date').value=new Date().toISOString().slice(0,10);
+  initLargeDatePicker();
   applyWeekFilter();
   startWeekAutoRefresh();
   startCloudSync();
@@ -1883,7 +1918,10 @@ else window.addEventListener('load', initApp);
     }
     resetMeasForm(); renderMeasCompat(); renderCompat(); syncCompat();
   };
-  function initCompatCompare(){ window.setCmpStatus(compatCmpStatus); }
+  function initCompatCompare(){
+    window.setCmpStatus(compatCmpStatus);
+    if(typeof initLargeDatePicker==='function') initLargeDatePicker();
+  }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initCompatCompare);
   else initCompatCompare();
   setTimeout(initCompatCompare, 500);
