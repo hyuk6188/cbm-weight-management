@@ -61,6 +61,7 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 
 /* HERO */
 .hero{background:white;border-bottom:1px solid var(--g200);padding:1.6rem clamp(16px,1vw,22px);overflow:hidden;}
+.hero.hidden-by-tab{display:none;}
 .hero-inner{width:100%;max-width:none;margin:0 auto;}
 .hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;}
 .hero-title h1{font-size:28px;font-weight:800;color:var(--g800);margin-bottom:4px;}
@@ -297,7 +298,7 @@ footer strong{color:var(--g600);}
   </div>
 </nav>
 
-<div class="hero">
+<div class="hero" id="dashboardHero">
   <div class="hero-inner">
     <div class="hero-top">
       <div class="hero-title">
@@ -913,6 +914,8 @@ function switchTab(t){
   document.querySelectorAll('.pane').forEach(el=>{
     el.classList.toggle('active', el.id==='pane-'+t);
   });
+  const hero=document.getElementById('dashboardHero');
+  if(hero) hero.classList.toggle('hidden-by-tab',t!=='compare');
   if(t==='base')    renderBase();
   if(t==='meas')    {updateCodeSel();}
   if(t==='compare') renderCompare();
@@ -2015,6 +2018,8 @@ else window.addEventListener('load', initApp);
     }
     var panes=document.querySelectorAll('.pane');
     for(var j=0;j<panes.length;j++) panes[j].classList.toggle('active', panes[j].id==='pane-'+t);
+    var hero=byId('dashboardHero');
+    if(hero) hero.classList.toggle('hidden-by-tab',t!=='compare');
     if(t==='base') renderBaseCompat();
     if(t==='meas') renderMeasCompat();
     if(t==='compare') renderCompat();
