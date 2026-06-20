@@ -527,6 +527,22 @@ function persistNote(){
   store.set('cbm_note', getNoteValue());
   queueCloudSave();
 }
+async function saveNoteToCloud(note){
+  if(!APPS_SCRIPT_WEBAPP_URL) throw new Error('Apps Script URL이 없습니다.');
+  const sep=APPS_SCRIPT_WEBAPP_URL.includes('?')?'&':'?';
+  const url=`${APPS_SCRIPT_WEBAPP_URL}${sep}action=saveNote&note=${encodeURIComponent(note)}&ts=${Date.now()}`;
+  const response=await fetch(url,{
+    method:'GET',
+    mode:'cors',
+    cache:'no-store',
+    redirect:'follow'
+  });
+  if(!response.ok) throw new Error(`HTTP ${response.status}`);
+  const result=await response.json();
+  if(!result || result.ok!==true) throw new Error('저장 확인 응답이 올바르지 않습니다.');
+  if(typeof result.note==='string' && result.note!==note) throw new Error('저장된 내용이 입력 내용과 다릅니다.');
+  return result;
+}
 function saveInspectionNote(){
   const note=getNoteValue();
   store.set('cbm_note', note);
@@ -548,7 +564,7 @@ function saveInspectionNote(){
     return;
   }
   if(APPS_SCRIPT_WEBAPP_URL){
-    loadJsonp(`${APPS_SCRIPT_WEBAPP_URL}?action=saveNote&note=${encodeURIComponent(note)}`)
+    saveNoteToCloud(note)
       .then(result=>{
         const savedNote=result && typeof result.note === 'string' ? result.note : note;
         const noteEl=document.getElementById('kpi-note');
@@ -1816,9 +1832,9 @@ else window.addEventListener('load', initApp);
         .saveNoteAndVerify(note);
       return;
     }
-    if(window.CBM_SYNC_APP_URL && typeof loadJsonp === 'function'){
+    if(window.CBM_SYNC_APP_URL && typeof saveNoteToCloud === 'function'){
       if(byId('syncStatus')){ byId('syncStatus').textContent='점검 내용 저장 중'; byId('syncStatus').className='sync-chip warn'; }
-      loadJsonp(window.CBM_SYNC_APP_URL+'?action=saveNote&note='+encodeURIComponent(note))
+      saveNoteToCloud(note)
         .then(function(result){
           var savedNote=result && typeof result.note === 'string' ? result.note : note;
           if(byId('kpi-note')) byId('kpi-note').value=savedNote;
