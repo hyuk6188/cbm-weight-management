@@ -770,6 +770,13 @@ function startCloudSync(){
 }
 function calcCBM(w,d,h){ return (w/1000)*(d/1000)*(h/1000); }
 function isErr(i){ return !i.code||!i.name||i.w<=0||i.d<=0||i.h<=0||i.kg<=0; }
+function measurementsForBase(base){
+  const exact=measurements.filter(m=>m.code===base.code && m.baseId!==null && m.baseId!==undefined && m.baseId!=='' && String(m.baseId)===String(base.id));
+  if(exact.length) return exact;
+  const firstBase=baseItems.find(i=>i.code===base.code);
+  if(!firstBase || String(firstBase.id)!==String(base.id)) return [];
+  return measurements.filter(m=>m.code===base.code && (m.baseId===null || m.baseId===undefined || m.baseId===''));
+}
 
 const CMAP = {'흰색':'#f0f0f0','화이트':'#f0f0f0','검정':'#333','블랙':'#333','빨강':'#e24b4a','레드':'#e24b4a','파랑':'#378add','블루':'#378add','초록':'#639922','그린':'#639922','노랑':'#ef9f27','갈색':'#854f0b','베이지':'#faeeda','회색':'#888780','그레이':'#888780','핑크':'#d4537e','은색':'#b4b2a9'};
 function colorHex(c){
@@ -797,7 +804,7 @@ function renderKPI(){
   const tol=parseFloat((document.getElementById('tol')||{value:'5'}).value)||5;
   let total=0, ok=0, err=0;
   baseItems.forEach(base=>{
-    const mList=measurements.filter(m=>m.code===base.code);
+    const mList=measurementsForBase(base);
     if(!mList.length) return;
     total++;
     const m=mList.sort((a,b)=>b.id-a.id)[0];
@@ -1115,7 +1122,7 @@ function renderCompare(){
   const rows=[];
   baseItems.forEach(base=>{
     if(q && !base.code.toLowerCase().includes(q) && !base.name.toLowerCase().includes(q)) return;
-    const mList=measurements.filter(m=>m.code===base.code).sort((a,b)=>b.id-a.id);
+    const mList=measurementsForBase(base).sort((a,b)=>b.id-a.id);
     if(!mList.length) return;
     const m=mList[0];
     const mDate=fmtDate(m.date);
@@ -1170,7 +1177,7 @@ function exportCompareExcel(){
   const rows=[['제품코드','색상','제품명칭','가로 차이','세로 차이','높이 차이','CBM 차이','중량 차이','판정','측정일']];
   baseItems.forEach(base=>{
     if(q && !base.code.toLowerCase().includes(q) && !base.name.toLowerCase().includes(q)) return;
-    const mList=measurements.filter(m=>m.code===base.code).sort((a,b)=>b.id-a.id);
+    const mList=measurementsForBase(base).sort((a,b)=>b.id-a.id);
     if(!mList.length) return;
     const m=mList[0];
     const mDate=fmtDate(m.date);
@@ -1359,7 +1366,7 @@ function importMeasCSV(e){
 function showDetail(code, baseId){
   const base=baseId ? baseItems.find(i=>i.id==baseId) : baseItems.find(i=>i.code===code);
   if(!base) return;
-  const mList=measurements.filter(m=>m.code===code && (!baseId || !m.baseId || m.baseId==baseId)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||b.id-a.id);
   const tol=5;
   const bC=calcCBM(base.w,base.d,base.h);
   const hex=colorHex(base.color);
@@ -1465,7 +1472,7 @@ function showDetail(code, baseId){
           `:`<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:17px;">실측 데이터가 없습니다.</div>`}
 
           <!-- ③ 전체 이력 -->
-          <div class="detail-sec" style="margin-bottom:6px;">전체 실측 이력</div>
+          <div class="detail-sec" style="margin-bottom:6px;">실측 이력</div>
           <div style="overflow-x:auto;">
             <table class="dtbl">
               <thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead>
@@ -1637,11 +1644,23 @@ else window.addEventListener('load', initApp);
     try { return JSON.parse(raw); } catch(e) { return null; }
   }
   function latestFor(base, meas){
-    var best=null;
-    for(var i=0;i<meas.length;i++){
-      if(meas[i].code===base.code && (!best || Number(meas[i].id||0)>Number(best.id||0))) best=meas[i];
+    var list=measurementsForBaseCompat(base,meas), best=null;
+    for(var i=0;i<list.length;i++){
+      if(!best || Number(list[i].id||0)>Number(best.id||0)) best=list[i];
     }
     return best;
+  }
+  function measurementsForBaseCompat(base,meas){
+    var exact=[], unassigned=[], i;
+    for(i=0;i<meas.length;i++){
+      if(meas[i].code!==base.code) continue;
+      if(meas[i].baseId!==null && meas[i].baseId!==undefined && meas[i].baseId!=='' && String(meas[i].baseId)===String(base.id)) exact.push(meas[i]);
+      else if(meas[i].baseId===null || meas[i].baseId===undefined || meas[i].baseId==='') unassigned.push(meas[i]);
+    }
+    if(exact.length) return exact;
+    var firstBase=null;
+    for(i=0;i<compatBase.length;i++){ if(compatBase[i].code===base.code){ firstBase=compatBase[i]; break; } }
+    return firstBase && String(firstBase.id)===String(base.id) ? unassigned : [];
   }
   function diffCell(baseVal, measVal, digits){
     var d=Number(measVal||0)-Number(baseVal||0);
@@ -1814,8 +1833,7 @@ else window.addEventListener('load', initApp);
     var b=null, i;
     for(i=0;i<compatBase.length;i++){ if(String(compatBase[i].id)===String(baseId) || (!baseId && compatBase[i].code===code)){ b=compatBase[i]; break; } }
     if(!b) return;
-    var list=[];
-    for(i=0;i<compatMeas.length;i++){ if(compatMeas[i].code===b.code) list.push(compatMeas[i]); }
+    var list=measurementsForBaseCompat(b,compatMeas);
     list.sort(function(a,b){ return String(b.date).localeCompare(String(a.date)) || Number(b.id||0)-Number(a.id||0); });
     var latest=list[0], bC=cbm(b), tol=Number(byId('tol')&&byId('tol').value)||5;
     function colorHex(name){ var s=String(name||'').toLowerCase(); if(s.indexOf('ww')!==-1||s.indexOf('white')!==-1) return '#e5e7eb'; if(s.indexOf('rcn')!==-1) return '#b7b7b0'; if(s.indexOf('bgm')!==-1) return '#b7b7b0'; return '#cbd5e1'; }
@@ -1839,7 +1857,7 @@ else window.addEventListener('load', initApp);
       return '<tr><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td>'+esc(m.by||'-')+'</td><td>'+esc(m.w)+'<br><small>'+dc(b.w,m.w)+'</small></td><td>'+esc(m.d)+'<br><small>'+dc(b.d,m.d)+'</small></td><td>'+esc(m.h)+'<br><small>'+dc(b.h,m.h)+'</small></td><td>'+Number(m.kg||0).toFixed(1)+'<br><small>'+dc(b.kg,m.kg)+'</small></td><td><span class="cbm-pill">'+mC.toFixed(3)+'</span><br><small>'+dc(bC,mC)+'</small></td><td>'+judge+'</td></tr>';
     }
     var lv=latest, hex=colorHex(b.color), latestBody=lv?'<div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">('+esc(fmtDateCompat(lv.date))+' · '+esc(lv.by||'측정자 미기재')+' · 허용오차 ±'+tol+'%)</span></div><div class="cmp-cards">'+cmpCard('CBM','m³',bC,cbm(lv),3)+cmpCard('중량','kg',b.kg,lv.kg,1)+'</div><div class="detail-sec" style="margin:14px 0 6px;">치수 및 중량 비교 (mm/kg)</div><table class="dtbl" style="margin-bottom:14px;"><thead><tr><th>항목</th><th>기준</th><th>실측</th><th>차이(mm)</th><th>차이율</th></tr></thead><tbody>'+dimRow('가로',b.w,lv.w,0)+dimRow('세로',b.d,lv.d,0)+dimRow('높이',b.h,lv.h,0)+dimRow('중량(kg)',b.kg,lv.kg,1)+'</tbody></table>':'<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:17px;">실측 데이터가 없습니다.</div>';
-    var hist='<div class="detail-sec" style="margin-bottom:6px;">전체 실측 이력</div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead><tbody>';
+    var hist='<div class="detail-sec" style="margin-bottom:6px;">실측 이력</div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead><tbody>';
     for(i=0;i<list.length;i++) hist+=histRow(list[i]);
     hist+=(list.length?'':'<tr><td colspan="8" class="empty-state" style="padding:16px;"><p>실측 데이터 없음</p></td></tr>')+'</tbody></table></div>';
     byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal" style="max-width:1120px;"><div class="modal-hdr"><div><div class="modal-title"><span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:'+hex+';border:1px solid #ccc;flex-shrink:0;display:inline-block;"></span>'+esc(b.code)+' · '+esc(b.name)+'</span></div><div class="modal-sub">'+esc(b.color||'')+' · 등록일 '+esc(b.createdAt||'-')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">✕</button></div><div class="modal-body">'+latestBody+hist+'</div></div></div>';
