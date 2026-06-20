@@ -152,7 +152,7 @@ tr.clickable:hover td{background:var(--g50);cursor:pointer;}
 .cmp-val{font-size:32px;font-weight:800;color:var(--g800);line-height:1.05;}
 .cmp-val.no-data{color:var(--g400);font-size:24px;}
 .cmp-unit{font-size:17px;font-weight:600;color:var(--g400);margin-left:3px;}
-.cmp-arrow{font-size:24px;font-weight:800;flex-shrink:0;color:var(--teal);width:36px;text-align:center;}
+.cmp-arrow{font-size:20px;font-weight:700;flex-shrink:0;color:var(--teal);width:56px;text-align:center;}
 .cmp-card-err .cmp-arrow{color:var(--red);}
 .cmp-diff{margin-top:12px;text-align:center;font-size:19px;font-weight:600;padding:6px 0;border-radius:6px;}
 .cmp-diff-ok{background:var(--teal-lt);color:var(--teal);}
@@ -1574,7 +1574,7 @@ function showDetail(code, baseId){
         <div class="cmp-label">${label}</div>
         <div class="cmp-row">
           <div class="cmp-col"><div class="cmp-tag base-tag">기준</div><div class="cmp-val">${bv.toFixed(digits)}<span class="cmp-unit">${unit}</span></div></div>
-          <div class="cmp-arrow">${ok?'✓':'!'}</div>
+          <div class="cmp-arrow">${ok?'이내':'초과'}</div>
           <div class="cmp-col"><div class="cmp-tag meas-tag">실측</div><div class="cmp-val">${mv.toFixed(digits)}<span class="cmp-unit">${unit}</span></div></div>
         </div>
         <div class="cmp-diff ${ok?'cmp-diff-ok':'cmp-diff-err'}">${dSign}${d.toFixed(digits)} (${pSign}${p.toFixed(1)}%)</div>
@@ -2038,7 +2038,7 @@ else window.addEventListener('load', initApp);
     function cmpCard(label,unit,bv,mv,digits){
       if(!mv && mv!==0) return '<div class="cmp-card"><div class="cmp-label">'+label+'</div><div class="cmp-row"><div class="cmp-col"><div class="cmp-tag base-tag">기준</div><div class="cmp-val">'+Number(bv||0).toFixed(digits)+'<span class="cmp-unit">'+unit+'</span></div></div><div class="cmp-col"><div class="cmp-tag meas-tag">실측</div><div class="cmp-val no-data">-</div></div></div></div>';
       var d=Number(mv||0)-Number(bv||0), p=Number(bv)>0?d/Number(bv)*100:0, ok=Math.abs(p)<=tol;
-      return '<div class="cmp-card '+(ok?'':'cmp-card-err')+'"><div class="cmp-label">'+label+'</div><div class="cmp-row"><div class="cmp-col"><div class="cmp-tag base-tag">기준</div><div class="cmp-val">'+Number(bv||0).toFixed(digits)+'<span class="cmp-unit">'+unit+'</span></div></div><div class="cmp-arrow">'+(ok?'✓':'!')+'</div><div class="cmp-col"><div class="cmp-tag meas-tag">실측</div><div class="cmp-val">'+Number(mv||0).toFixed(digits)+'<span class="cmp-unit">'+unit+'</span></div></div></div><div class="cmp-diff '+(ok?'cmp-diff-ok':'cmp-diff-err')+'">'+(d>=0?'+':'')+d.toFixed(digits)+' ('+(p>=0?'+':'')+p.toFixed(1)+'%)</div></div>';
+      return '<div class="cmp-card '+(ok?'':'cmp-card-err')+'"><div class="cmp-label">'+label+'</div><div class="cmp-row"><div class="cmp-col"><div class="cmp-tag base-tag">기준</div><div class="cmp-val">'+Number(bv||0).toFixed(digits)+'<span class="cmp-unit">'+unit+'</span></div></div><div class="cmp-arrow">'+(ok?'이내':'초과')+'</div><div class="cmp-col"><div class="cmp-tag meas-tag">실측</div><div class="cmp-val">'+Number(mv||0).toFixed(digits)+'<span class="cmp-unit">'+unit+'</span></div></div></div><div class="cmp-diff '+(ok?'cmp-diff-ok':'cmp-diff-err')+'">'+(d>=0?'+':'')+d.toFixed(digits)+' ('+(p>=0?'+':'')+p.toFixed(1)+'%)</div></div>';
     }
     function dimRow(label,bv,mv,dec){
       if(!mv && mv!==0) return '<tr><td>'+label+'</td><td>'+esc(bv)+'</td><td>-</td><td class="d-neutral">-</td><td>-</td></tr>';
