@@ -391,9 +391,9 @@ footer strong{color:var(--g600);}
     </div>
     <div style="flex:1;min-width:8px;"></div>
     <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-      <button type="button" class="msb-chip" id="clbl_all" onclick="setCmpStatus('all')">전체</button>
-      <button type="button" class="msb-chip" id="clbl_ok"  onclick="setCmpStatus('ok')">정상</button>
-      <button type="button" class="msb-chip" id="clbl_err" onclick="setCmpStatus('err')">오류</button>
+      <button type="button" class="msb-chip" id="clbl_all" data-cmp-status="all">전체</button>
+      <button type="button" class="msb-chip ok" id="clbl_ok" data-cmp-status="ok">정상</button>
+      <button type="button" class="msb-chip err" id="clbl_err" data-cmp-status="err">오류</button>
     </div>
     <div class="msb-div" style="height:22px;"></div>
     <button type="button" class="tb-btn" style="height:32px;flex-shrink:0;" onclick="exportCompareExcel()">⬇ 엑셀 내려받기</button>
@@ -821,6 +821,7 @@ function setCmpStatus(s){
   ['all','ok','err'].forEach(k=>{
     const lbl=document.getElementById('clbl_'+k);
     if(!lbl) return;
+    lbl.classList.toggle('active',k===s);
     if(k===s){lbl.style.background=colors[k];lbl.style.color='white';lbl.style.borderColor=colors[k];}
     else{lbl.style.background='';lbl.style.color='';lbl.style.borderColor='';}
   });
@@ -1653,6 +1654,7 @@ else window.addEventListener('load', initApp);
     for(var i=0;i<keys.length;i++){
       var k=keys[i], lbl=byId('clbl_'+k);
       if(!lbl) continue;
+      if(lbl.classList) lbl.classList.toggle('active',k===compatCmpStatus);
       if(k===compatCmpStatus){
         lbl.style.background=colors[k];
         lbl.style.color='#fff';
@@ -1665,6 +1667,12 @@ else window.addEventListener('load', initApp);
     }
     renderCompat();
   };
+  document.addEventListener('click',function(e){
+    var button=e.target && e.target.closest ? e.target.closest('[data-cmp-status]') : null;
+    if(!button) return;
+    e.preventDefault();
+    window.setCmpStatus(button.getAttribute('data-cmp-status'));
+  });
   function renderBaseCompat(){
     var tb=byId('baseTb');
     if(!tb) return;
@@ -1872,9 +1880,10 @@ else window.addEventListener('load', initApp);
     }
     resetMeasForm(); renderMeasCompat(); renderCompat(); syncCompat();
   };
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', renderCompat);
-  else renderCompat();
-  setTimeout(renderCompat, 500);
+  function initCompatCompare(){ window.setCmpStatus(compatCmpStatus); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initCompatCompare);
+  else initCompatCompare();
+  setTimeout(initCompatCompare, 500);
   document.addEventListener('dblclick', function(e){
     var row = e.target && e.target.closest ? e.target.closest('#compareTb tr[data-code]') : null;
     if(row && typeof window.showDetail === 'function') {
