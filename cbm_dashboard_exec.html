@@ -92,8 +92,8 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .msb-label{font-size:19px;font-weight:500;color:var(--g400);white-space:nowrap;min-width:64px;}
 .msb-input-wrap{flex:1;}
 .msb-dates{display:flex;align-items:center;gap:4px;min-width:0;}
-.msb-dates input[type=date]{height:36px;font-size:19px;padding:0 8px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);color:var(--g800);width:128px;min-width:0;}
-.msb-dates input[type=date]:focus{border-color:var(--blue);background:white;}
+.msb-dates input{height:38px;font-size:19px;padding:0 10px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);color:var(--g800);width:145px;min-width:0;cursor:pointer;}
+.msb-dates input:focus{border-color:var(--blue);background:white;}
 .msb-tilde{font-size:17px;color:var(--g400);}
 .msb-status{display:flex;gap:4px;flex-shrink:0;}
 .msb-chip{height:32px;padding:0 14px;font-size:19px;border-radius:16px;border:1.5px solid var(--g200);background:var(--g50);color:var(--g600);cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s;}
@@ -402,9 +402,9 @@ footer strong{color:var(--g600);}
     <div class="msb-div" style="height:22px;"></div>
     <span class="msb-label" style="white-space:nowrap;">실측일</span>
     <div class="msb-dates" style="flex-shrink:0;">
-      <input type="date" id="cmpFrom" onchange="renderCompare()">
+      <input type="text" id="cmpFrom" placeholder="YYYY-MM-DD" readonly>
       <span class="msb-tilde">~</span>
-      <input type="date" id="cmpTo" onchange="renderCompare()">
+      <input type="text" id="cmpTo" placeholder="YYYY-MM-DD" readonly>
     </div>
     <div style="flex:1;min-width:8px;"></div>
     <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
@@ -507,8 +507,7 @@ function ensureSeedData(){
     store.set('cbm_base', JSON.stringify(baseItems));
     store.set('cbm_meas', JSON.stringify(measurements));
     ['cmpFrom','cmpTo'].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el) el.value='';
+      setDatePickerValue(id,'');
     });
   }
 }
@@ -1519,8 +1518,8 @@ function getWeekNum(dateStr){
 
 function applyWeekFilter(){
   const {from, to} = getPrevWeekRange();
-  document.getElementById('cmpFrom').value = from;
-  document.getElementById('cmpTo').value   = to;
+  setDatePickerValue('cmpFrom',from);
+  setDatePickerValue('cmpTo',to);
   const wn = getWeekNum(from);
   const label = document.getElementById('weekLabel');
   if(label) label.textContent = `${from.slice(0,4)}년 제${wn}주 (${from} ~ ${to})`;
@@ -1544,23 +1543,35 @@ function startWeekAutoRefresh(){
 
 const DEFAULT_NOTE='1. 동일코드 내수 및 수출 포장박스 BOM 중복 구성\n2. CBM 자동구성 DW+박스형태+보정값 로직 수정 필요\n3. 박스업체 로트별 재단 치수 및 괘선 위치 상이';
 
+function setDatePickerValue(id,value){
+  const input=document.getElementById(id);
+  if(!input) return;
+  if(input._flatpickr) input._flatpickr.setDate(value||null,false,'Y-m-d');
+  else input.value=value||'';
+}
+
 function initLargeDatePicker(){
-  const input=document.getElementById('mf_date');
-  if(!input || !window.flatpickr || input._flatpickr) return;
-  flatpickr(input,{
-    locale:(flatpickr.l10ns && flatpickr.l10ns.ko) || 'default',
-    dateFormat:'Y-m-d',
-    defaultDate:input.value || new Date(),
-    disableMobile:true,
-    allowInput:false,
-    clickOpens:true,
-    onReady:function(selectedDates,dateStr,instance){
-      instance.calendarContainer.classList.add('large-date-calendar');
-    },
-    onOpen:function(selectedDates,dateStr,instance){
-      const current=instance.input.value;
-      if(current) instance.setDate(current,false,'Y-m-d');
-    }
+  ['mf_date','cmpFrom','cmpTo'].forEach(function(id){
+    const input=document.getElementById(id);
+    if(!input || !window.flatpickr || input._flatpickr) return;
+    flatpickr(input,{
+      locale:(flatpickr.l10ns && flatpickr.l10ns.ko) || 'default',
+      dateFormat:'Y-m-d',
+      defaultDate:input.value || (id==='mf_date' ? new Date() : null),
+      disableMobile:true,
+      allowInput:false,
+      clickOpens:true,
+      onReady:function(selectedDates,dateStr,instance){
+        instance.calendarContainer.classList.add('large-date-calendar');
+      },
+      onOpen:function(selectedDates,dateStr,instance){
+        const current=instance.input.value;
+        if(current) instance.setDate(current,false,'Y-m-d');
+      },
+      onChange:function(){
+        if(id==='cmpFrom' || id==='cmpTo') renderCompare();
+      }
+    });
   });
 }
 
