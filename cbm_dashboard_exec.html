@@ -1583,6 +1583,7 @@ else window.addEventListener('load', initApp);
   var compatBase = [];
   var compatMeas = [];
   var compatLoaded = false;
+  var compatCmpStatus = 'all';
   function getServer(){
     var el=byId('server-data');
     if(!el) return null;
@@ -1632,16 +1633,41 @@ else window.addEventListener('load', initApp);
       var judge=maxP<=5?'<span class="sp sp-ok">정상</span>':maxP<=10?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
       rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td></tr>');
     }
+    var filtered = [];
+    for(var r=0;r<rows.length;r++){
+      if(compatCmpStatus==='ok' && rows[r].indexOf('row-ok')===-1) continue;
+      if(compatCmpStatus==='err' && rows[r].indexOf('row-ok')!==-1) continue;
+      filtered.push(rows[r]);
+    }
     if(byId('kpi-total')) byId('kpi-total').textContent=total;
     if(byId('kpi-ok')) byId('kpi-ok').textContent=ok;
     if(byId('kpi-err')) byId('kpi-err').textContent=err;
-    if(byId('compareTb')) byId('compareTb').innerHTML=rows.join('');
-    if(byId('compareInfo')) byId('compareInfo').textContent=rows.length+'건 비교 · 오류 '+err+'건';
+    if(byId('compareTb')) byId('compareTb').innerHTML=filtered.length ? filtered.join('') : '<tr><td colspan="9" class="empty-state"><div class="ei">📊</div><p>조건에 맞는 데이터가 없습니다.</p></td></tr>';
+    if(byId('compareInfo')) byId('compareInfo').textContent=filtered.length+'건 비교 · 오류 '+err+'건';
     if(byId('syncStatus')) {
       byId('syncStatus').textContent=server.base&&server.measurements?'동기화 완료':'기본 데이터 표시 중';
       byId('syncStatus').className='sync-chip '+(server.base&&server.measurements?'ok':'warn');
     }
   }
+  window.setCmpStatus=function(s){
+    compatCmpStatus=s || 'all';
+    var colors={all:'#1A56DB',ok:'#0A7C59',err:'#991B1B'};
+    var keys=['all','ok','err'];
+    for(var i=0;i<keys.length;i++){
+      var k=keys[i], lbl=byId('clbl_'+k);
+      if(!lbl) continue;
+      if(k===compatCmpStatus){
+        lbl.style.background=colors[k];
+        lbl.style.color='#fff';
+        lbl.style.borderColor=colors[k];
+      }else{
+        lbl.style.background='';
+        lbl.style.color='';
+        lbl.style.borderColor='';
+      }
+    }
+    renderCompat();
+  };
   function renderBaseCompat(){
     var tb=byId('baseTb');
     if(!tb) return;
