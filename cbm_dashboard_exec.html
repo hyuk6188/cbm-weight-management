@@ -89,7 +89,7 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 /* MULTI SEARCH BAR */
 .msb{display:flex;align-items:center;flex-wrap:nowrap;background:white;border:1px solid var(--g200);border-radius:10px;padding:0 12px;margin-bottom:12px;height:52px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
 .msb-field{display:flex;align-items:center;gap:8px;flex:1;}
-.msb-label{font-size:19px;font-weight:500;color:var(--g400);white-space:nowrap;min-width:64px;}
+.msb-label{font-size:19px;font-weight:500;color:var(--g400);white-space:nowrap;min-width:64px;margin-right:10px;}
 .msb-input-wrap{flex:1;}
 .msb-dates{display:flex;align-items:center;gap:4px;min-width:0;}
 .msb-dates input{height:38px;font-size:19px;padding:0 10px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);color:var(--g800);width:145px;min-width:0;cursor:pointer;}
@@ -400,7 +400,7 @@ footer strong{color:var(--g600);}
       <input id="cmpQ" class="sb-input" placeholder="코드 입력..." oninput="renderCompare()">
     </div>
     <div class="msb-div" style="height:22px;"></div>
-    <span class="msb-label" style="white-space:nowrap;">실측일</span>
+    <span class="msb-label" style="white-space:nowrap;">측정일</span>
     <div class="msb-dates" style="flex-shrink:0;">
       <input type="text" id="cmpFrom" placeholder="YYYY-MM-DD" readonly>
       <span class="msb-tilde">~</span>
