@@ -714,11 +714,25 @@ async function loadCloudData(opts={}){
   _syncLoading=true;
   setSyncStatus('시트 읽는 중', 'warn');
   try{
-    const json=await loadJsonp(`${APPS_SCRIPT_WEBAPP_URL}?action=load`);
+    let json;
+    try{
+      const sep=APPS_SCRIPT_WEBAPP_URL.includes('?')?'&':'?';
+      const response=await fetch(`${APPS_SCRIPT_WEBAPP_URL}${sep}action=load&ts=${Date.now()}`,{
+        method:'GET',
+        mode:'cors',
+        cache:'no-store',
+        redirect:'follow'
+      });
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      json=await response.json();
+    }catch(fetchErr){
+      console.warn('일반 동기화 재시도:',fetchErr);
+      json=await loadJsonp(`${APPS_SCRIPT_WEBAPP_URL}?action=load`);
+    }
     applyCloudData(json||{});
   }catch(err){
     if(opts.manual) alert('시트 동기화 실패: '+err.message);
-    setSyncStatus(APPS_SCRIPT_WEBAPP_URL?'동기화 실패':'시트 권한 필요', 'err');
+    setSyncStatus(baseItems.length && measurements.length ? '기본 데이터 표시 중' : '동기화 실패', baseItems.length && measurements.length ? 'warn' : 'err');
     console.warn(err);
   }finally{
     _syncLoading=false;
