@@ -1783,11 +1783,25 @@ else window.addEventListener('load', initApp);
   function renderMeasCompat(){
     var tb=byId('measTb');
     if(!tb) return;
-    var rows=[];
+    var rows=[], tol=Number(byId('tol')&&byId('tol').value)||5;
     for(var i=0;i<compatMeas.length;i++){
       var m=compatMeas[i], b=null;
-      for(var j=0;j<compatBase.length;j++){ if(compatBase[j].code===m.code){ b=compatBase[j]; break; } }
-      rows.push('<tr><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td><span class="sp sp-ok">저장</span></td><td>'+esc(m.by||'')+'</td><td><button class="act-btn" onclick="openMeasForm(\''+attr(m.id)+'\')" title="수정">✎</button> <button class="act-btn del" onclick="delMeas(\''+attr(m.id)+'\')" title="삭제">✕</button></td></tr>');
+      for(var j=0;j<compatBase.length;j++){ if(String(compatBase[j].id)===String(m.baseId)){ b=compatBase[j]; break; } }
+      if(!b){ for(var k=0;k<compatBase.length;k++){ if(compatBase[k].code===m.code){ b=compatBase[k]; break; } } }
+      var status='<span class="sp" style="color:var(--g400)">—</span>', rowClass='';
+      if(b){
+        var bC=cbm(b), mC=cbm(m), pcts=[
+          Number(b.w)>0?Math.abs((Number(m.w)-Number(b.w))/Number(b.w)*100):0,
+          Number(b.d)>0?Math.abs((Number(m.d)-Number(b.d))/Number(b.d)*100):0,
+          Number(b.h)>0?Math.abs((Number(m.h)-Number(b.h))/Number(b.h)*100):0,
+          Number(b.kg)>0?Math.abs((Number(m.kg)-Number(b.kg))/Number(b.kg)*100):0,
+          bC>0?Math.abs((mC-bC)/bC*100):0
+        ];
+        var maxP=Math.max.apply(Math,pcts), normal=maxP<=tol;
+        status=normal?'<span class="sp sp-ok">정상</span>':'<span class="sp sp-err">오류</span>';
+        rowClass=normal?'':' class="row-err"';
+      }
+      rows.push('<tr'+rowClass+'><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td style="font-weight:600;">'+esc(m.code)+'</td><td>'+esc(b&&b.color||'')+'</td><td>'+esc(b&&b.name||'')+'</td><td>'+esc(m.w)+'</td><td>'+esc(m.d)+'</td><td>'+esc(m.h)+'</td><td><span class="cbm-pill">'+cbm(m).toFixed(3)+'</span></td><td>'+Number(m.kg||0).toFixed(1)+'</td><td>'+status+'</td><td>'+esc(m.by||'')+'</td><td><button class="act-btn" onclick="openMeasForm(\''+attr(m.id)+'\')" title="수정">✎</button> <button class="act-btn del" onclick="delMeas(\''+attr(m.id)+'\')" title="삭제">✕</button></td></tr>');
     }
     tb.innerHTML=rows.join('');
     if(byId('measInfo')) byId('measInfo').textContent=rows.length+'건';
