@@ -122,6 +122,9 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .dbc .dl{font-size:15px;color:var(--g400);font-weight:600;text-transform:uppercase;}
 .dbc .dv{font-size:17px;font-weight:600;color:var(--g800);}
 .detail-sec{font-size:19px;font-weight:600;color:var(--g600);margin-bottom:8px;letter-spacing:.03em;}
+.detail-sec-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 6px;}
+.detail-export-btn{height:36px;padding:0 14px;border:1px solid var(--g200);border-radius:7px;background:white;color:var(--g600);font:inherit;font-size:16px;cursor:pointer;white-space:nowrap;}
+.detail-export-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-lt);}
 .dtbl{width:100%;border-collapse:collapse;font-size:19px;}
 .dtbl th{background:var(--g100);padding:9px 10px;text-align:center;color:var(--g600);font-weight:600;border-bottom:1px solid var(--g200);}
 .dtbl td{padding:10px 10px;text-align:center;border-bottom:1px solid var(--g100);}
@@ -1478,6 +1481,28 @@ function importMeasCSV(e){
 
 /* ── INIT ── */
 /* ── 상세 비교 모달 ── */
+let detailExportContext=null;
+function downloadDetailExcel(){
+  const context=detailExportContext;
+  if(!context||!context.base||!context.list||!context.list.length){alert('내려받을 실측 이력이 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 기능을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');return;}
+  const base=context.base, tol=Number(context.tol)||5;
+  const baseCbm=calcCBM(Number(base.w)||0,Number(base.d)||0,Number(base.h)||0);
+  const rows=[['제품코드','색상','제품명칭','측정일','측정자','가로(mm)','세로(mm)','높이(mm)','중량(kg)','CBM(m³)','판정']];
+  context.list.forEach(m=>{
+    const measuredCbm=calcCBM(Number(m.w)||0,Number(m.d)||0,Number(m.h)||0);
+    const pairs=[[base.w,m.w],[base.d,m.d],[base.h,m.h],[base.kg,m.kg],[baseCbm,measuredCbm]];
+    const maxPercent=Math.max(...pairs.map(([standard,actual])=>Number(standard)>0?Math.abs((Number(actual||0)-Number(standard))/Number(standard)*100):0));
+    const judge=maxPercent<=tol?'정상':maxPercent<=tol*2?'경고':'오류';
+    rows.push([base.code,base.color||'',base.name||'',fmtDate(m.date),m.by||'',Number(m.w)||0,Number(m.d)||0,Number(m.h)||0,Number(m.kg)||0,Number(measuredCbm.toFixed(5)),judge]);
+  });
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:14},{wch:14},{wch:24},{wch:13},{wch:12},{wch:11},{wch:11},{wch:11},{wch:11},{wch:12},{wch:9}];
+  XLSX.utils.book_append_sheet(wb,ws,'실측이력');
+  const safeName=`${base.code}_${base.color||'색상없음'}_실측이력`.replace(/[\\/:*?"<>|]/g,'_');
+  XLSX.writeFile(wb,`${safeName}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
 function showDetail(code, baseId){
   const base=baseId ? baseItems.find(i=>i.id==baseId) : baseItems.find(i=>i.code===code);
   if(!base) return;
@@ -1486,6 +1511,7 @@ function showDetail(code, baseId){
   const bC=calcCBM(base.w,base.d,base.h);
   const hex=colorHex(base.color);
   const latest=mList[0]||null;
+  detailExportContext={base,list:mList,tol};
 
   // 비교 카드: 기준 vs 실측 나란히
   function cmpCard(label,unit,bv,mv,digits){
@@ -1584,7 +1610,10 @@ function showDetail(code, baseId){
           `:`<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:17px;">실측 데이터가 없습니다.</div>`}
 
           <!-- ③ 전체 이력 -->
-          <div class="detail-sec" style="margin-bottom:6px;">실측 이력</div>
+          <div class="detail-sec-row">
+            <div class="detail-sec" style="margin-bottom:0;">실측 이력</div>
+            <button type="button" class="detail-export-btn" onclick="downloadDetailExcel()">⬇ 실측 이력 엑셀</button>
+          </div>
           <div style="overflow-x:auto;">
             <table class="dtbl">
               <thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead>
@@ -1599,6 +1628,7 @@ function showDetail(code, baseId){
 function closeDetail(){
   document.getElementById('detailModal').style.display='none';
   document.getElementById('detailModal').innerHTML='';
+  detailExportContext=null;
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDetail();});
 
@@ -1956,6 +1986,7 @@ else window.addEventListener('load', initApp);
     var list=measurementsForBaseCompat(b,compatMeas);
     list.sort(function(a,b){ return String(b.date).localeCompare(String(a.date)) || Number(b.id||0)-Number(a.id||0); });
     var latest=list[0], bC=cbm(b), tol=Number(byId('tol')&&byId('tol').value)||5;
+    detailExportContext={base:b,list:list,tol:tol};
     function colorHex(name){ var s=String(name||'').toLowerCase(); if(s.indexOf('ww')!==-1||s.indexOf('white')!==-1) return '#e5e7eb'; if(s.indexOf('rcn')!==-1) return '#b7b7b0'; if(s.indexOf('bgm')!==-1) return '#b7b7b0'; return '#cbd5e1'; }
     function clsPct(baseVal, measVal){ var p=Number(baseVal)>0?(Number(measVal||0)-Number(baseVal||0))/Number(baseVal)*100:0; return Math.abs(p)<=tol?'d-ok':'d-err'; }
     function pct(baseVal, measVal){ var p=Number(baseVal)>0?(Number(measVal||0)-Number(baseVal||0))/Number(baseVal)*100:0; return (p>=0?'+':'')+p.toFixed(1)+'%'; }
@@ -1977,13 +2008,13 @@ else window.addEventListener('load', initApp);
       return '<tr><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td>'+esc(m.by||'-')+'</td><td>'+esc(m.w)+'<br><small>'+dc(b.w,m.w)+'</small></td><td>'+esc(m.d)+'<br><small>'+dc(b.d,m.d)+'</small></td><td>'+esc(m.h)+'<br><small>'+dc(b.h,m.h)+'</small></td><td>'+Number(m.kg||0).toFixed(1)+'<br><small>'+dc(b.kg,m.kg)+'</small></td><td><span class="cbm-pill">'+mC.toFixed(3)+'</span><br><small>'+dc(bC,mC)+'</small></td><td>'+judge+'</td></tr>';
     }
     var lv=latest, hex=colorHex(b.color), latestBody=lv?'<div class="detail-sec" style="margin-bottom:8px;">최신 실측 비교 <span style="font-weight:400;color:var(--g400);">('+esc(fmtDateCompat(lv.date))+' · '+esc(lv.by||'측정자 미기재')+' · 허용오차 ±'+tol+'%)</span></div><div class="cmp-cards">'+cmpCard('CBM','m³',bC,cbm(lv),3)+cmpCard('중량','kg',b.kg,lv.kg,1)+'</div><div class="detail-sec" style="margin:14px 0 6px;">치수 및 중량 비교 (mm/kg)</div><table class="dtbl" style="margin-bottom:14px;"><thead><tr><th>항목</th><th>기준</th><th>실측</th><th>차이(mm)</th><th>차이율</th></tr></thead><tbody>'+dimRow('가로',b.w,lv.w,0)+dimRow('세로',b.d,lv.d,0)+dimRow('높이',b.h,lv.h,0)+dimRow('중량(kg)',b.kg,lv.kg,1)+'</tbody></table>':'<div style="padding:16px 0;text-align:center;color:var(--g400);font-size:17px;">실측 데이터가 없습니다.</div>';
-    var hist='<div class="detail-sec" style="margin-bottom:6px;">실측 이력</div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead><tbody>';
+    var hist='<div class="detail-sec-row"><div class="detail-sec" style="margin-bottom:0;">실측 이력</div><button type="button" class="detail-export-btn" onclick="downloadDetailExcel()">⬇ 실측 이력 엑셀</button></div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead><tbody>';
     for(i=0;i<list.length;i++) hist+=histRow(list[i]);
     hist+=(list.length?'':'<tr><td colspan="8" class="empty-state" style="padding:16px;"><p>실측 데이터 없음</p></td></tr>')+'</tbody></table></div>';
     byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal" style="max-width:1120px;"><div class="modal-hdr"><div><div class="modal-title">'+esc(b.code)+' · '+esc(b.color||'색상 없음')+' · '+esc(b.name)+'</div><div class="modal-sub">등록일 '+esc(b.createdAt||'-')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">✕</button></div><div class="modal-body">'+latestBody+hist+'</div></div></div>';
     byId('detailModal').style.display='block';
   };
-  window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; } };
+  window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; detailExportContext=null; } };
   window.resetBaseForm=function(){ compatBaseEditId=null; ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 입력'; if(byId('bBtnTxt')) byId('bBtnTxt').textContent='저장'; };
   window.resetMeasForm=function(){ compatMeasEditId=null; ['mf_code','mf_color','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(typeof updateColorSel==='function') updateColorSel(); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력'; };
   window.bLP=function(){};
