@@ -43,7 +43,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--g50);col
 }
 
 /* NAV */
-nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:54px;box-shadow:0 1px 0 var(--g200),0 2px 8px rgba(0,0,0,.06);}
+nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,1vw,22px);height:54px;box-shadow:0 1px 0 var(--g200),0 2px 8px rgba(0,0,0,.06);}
 .nav-logo{color:var(--g800);font-size:19px;font-weight:700;}
 .nav-logo span{color:var(--g400);font-weight:400;font-size:17px;}
 .nav-tabs{display:flex;margin-left:12px;}
@@ -60,23 +60,23 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .sync-chip.err::before{background:var(--red);}
 
 /* HERO */
-.hero{background:white;border-bottom:1px solid var(--g200);padding:1.8rem 2rem;overflow:hidden;}
-.hero-inner{width:100%;max-width:1760px;margin:0 auto;}
+.hero{background:white;border-bottom:1px solid var(--g200);padding:1.6rem clamp(16px,1vw,22px);overflow:hidden;}
+.hero-inner{width:100%;max-width:none;margin:0 auto;}
 .hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;}
 .hero-title h1{font-size:28px;font-weight:800;color:var(--g800);margin-bottom:4px;}
 .hero-title h1 em{color:var(--blue);font-style:normal;}
 .hero-title p{font-size:19px;color:var(--g400);}
 .chip{background:var(--g100);color:var(--g600);border:1px solid var(--g200);border-radius:20px;padding:4px 12px;font-size:17px;}
-.hero-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 2.5fr;gap:16px;}
-.hkpi{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:18px 24px;min-height:118px;}
+.hero-kpis{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr)) minmax(500px,2.5fr);gap:14px;}
+.hkpi{background:var(--g50);border:1px solid var(--g200);border-radius:10px;padding:20px 26px;min-height:150px;min-width:0;}
 .hkpi .n{font-size:46px;font-weight:800;line-height:1;margin-bottom:0;}
 .hkpi .n.blue{color:var(--blue);} .hkpi .n.green{color:var(--teal);} .hkpi .n.red{color:var(--red);}
 .hkpi .l{font-size:19px;color:var(--g600);margin-bottom:10px;}
 .hkpi .s{font-size:17px;color:var(--g400);margin-top:1px;}
-.hkpi-note textarea{width:100%;height:96px;border:none;background:transparent;resize:none;font-family:inherit;font-size:19px;font-weight:700;color:var(--g800);outline:none;line-height:1.65;overflow:hidden;display:block;}
+.hkpi-note textarea{width:100%;min-width:0;height:96px;border:none;background:transparent;resize:none;font-family:inherit;font-size:19px;font-weight:700;color:var(--g800);outline:none;line-height:1.65;overflow:hidden;overflow-wrap:anywhere;white-space:pre-wrap;display:block;}
 
 /* LAYOUT */
-.wrapper{width:100%;max-width:calc(1760px + 4rem);margin:0 auto;padding:1.5rem 2rem 3rem;}
+.wrapper{width:100%;max-width:none;margin:0 auto;padding:1.35rem clamp(16px,1vw,22px) 3rem;}
 .pane{display:none;} .pane.active{display:block;}
 
 /* TOOLBAR */
@@ -110,7 +110,7 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 
 /* DETAIL MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
-.modal{background:white;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.22);width:100%;max-width:1120px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal{background:white;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.22);width:100%;max-width:1480px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--g200);flex-shrink:0;}
 .modal-title{font-size:19px;font-weight:700;color:var(--g800);}
 .modal-sub{font-size:19px;color:var(--g400);margin-top:3px;}
@@ -259,6 +259,22 @@ tr.row-err:hover td{background:#FEE2E2;} tr.row-warn:hover td{background:#FEF3C7
 /* FOOTER */
 footer{background:var(--g100);border-top:1px solid var(--g200);color:var(--g400);padding:1rem 2rem;font-size:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;}
 footer strong{color:var(--g600);}
+@media (max-width:1200px){
+  .hero-kpis{grid-template-columns:repeat(3,minmax(180px,1fr));}
+  .hkpi-note{grid-column:1/-1;}
+  .msb{overflow-x:auto;}
+}
+@media (max-width:760px){
+  nav{height:auto;min-height:54px;align-items:flex-start;gap:8px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px;}
+  .nav-left{flex-wrap:wrap;}.nav-tabs{margin-left:0;}.nav-tab{height:42px;padding:0 10px;font-size:17px;}
+  .hero-kpis{grid-template-columns:1fr;}.hkpi-note{grid-column:auto;}
+  .hkpi-note textarea{height:170px;}
+  .hero,.wrapper{padding-left:12px;padding-right:12px;}
+  .hero-title h1{font-size:24px;}
+  .msb{padding-left:10px;padding-right:10px;}
+  .modal-bg{padding:8px;}.modal-hdr{padding:14px;}.modal-body{padding:14px 10px;}
+  .cmp-cards{grid-template-columns:1fr;}
+}
 </style>
 </head>
 <body>
@@ -447,7 +463,12 @@ footer strong{color:var(--g600);}
     </div>
   </div>
   <div class="tbl-wrap">
-    <table>
+    <table class="compare-table" style="table-layout:fixed;min-width:1400px;">
+      <colgroup>
+        <col style="width:12%"><col style="width:10%"><col style="width:17%">
+        <col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
+        <col style="width:7%"><col style="width:9%">
+      </colgroup>
       <thead><tr>
         <th>제품코드</th><th>색상</th><th>제품명칭</th>
         <th>가로 차이</th><th>세로 차이</th><th>높이 차이</th>
@@ -1576,7 +1597,7 @@ function showDetail(code, baseId){
   const lv=latest;
   document.getElementById('detailModal').innerHTML=`
     <div class="modal-bg" onclick="if(event.target===this)closeDetail()">
-      <div class="modal" style="max-width:1120px;">
+      <div class="modal" style="max-width:1480px;">
         <div class="modal-hdr">
           <div>
             <div class="modal-title">
@@ -2011,7 +2032,7 @@ else window.addEventListener('load', initApp);
     var hist='<div class="detail-sec-row"><div class="detail-sec" style="margin-bottom:0;">실측 이력</div><button type="button" class="detail-export-btn" onclick="downloadDetailExcel()">⬇ 실측 이력 엑셀</button></div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th></tr></thead><tbody>';
     for(i=0;i<list.length;i++) hist+=histRow(list[i]);
     hist+=(list.length?'':'<tr><td colspan="8" class="empty-state" style="padding:16px;"><p>실측 데이터 없음</p></td></tr>')+'</tbody></table></div>';
-    byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal" style="max-width:1120px;"><div class="modal-hdr"><div><div class="modal-title">'+esc(b.code)+' · '+esc(b.color||'색상 없음')+' · '+esc(b.name)+'</div><div class="modal-sub">등록일 '+esc(b.createdAt||'-')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">✕</button></div><div class="modal-body">'+latestBody+hist+'</div></div></div>';
+    byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal" style="max-width:1480px;"><div class="modal-hdr"><div><div class="modal-title">'+esc(b.code)+' · '+esc(b.color||'색상 없음')+' · '+esc(b.name)+'</div><div class="modal-sub">등록일 '+esc(b.createdAt||'-')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">✕</button></div><div class="modal-body">'+latestBody+hist+'</div></div></div>';
     byId('detailModal').style.display='block';
   };
   window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; detailExportContext=null; } };
