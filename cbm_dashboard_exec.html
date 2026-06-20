@@ -343,10 +343,14 @@ footer strong{color:var(--g600);}
   <div class="form-panel open">
     <div class="fp-hdr"><span class="fp-title">실측 데이터 입력</span></div>
     <div class="fp-body">
-      <div class="fp-grid" style="grid-template-columns:repeat(3,1fr);">
-        <div class="fp-field"><label>제품코드 · 색상 *</label>
-          <select id="mf_code" onchange="onCodeSel()"><option value="">-- 제품코드 · 색상 선택 --</option></select>
-          <span class="emsg" id="me_code">제품코드와 색상을 선택하세요</span>
+      <div class="fp-grid" style="grid-template-columns:repeat(4,1fr);">
+        <div class="fp-field"><label>제품코드 *</label>
+          <select id="mf_code" onchange="onCodeSel()"><option value="">-- 제품코드 선택 --</option></select>
+          <span class="emsg" id="me_code">제품코드를 선택하세요</span>
+        </div>
+        <div class="fp-field"><label>색상 *</label>
+          <select id="mf_color" onchange="onColorSel()" disabled><option value="">-- 색상 선택 --</option></select>
+          <span class="emsg" id="me_color">색상을 선택하세요</span>
         </div>
         <div class="fp-field"><label>측정일 *</label><input id="mf_date" type="text" placeholder="YYYY-MM-DD" readonly><span class="emsg" id="me_date">날짜를 입력하세요</span></div>
         <div class="fp-field"><label>측정자</label>
@@ -1030,8 +1034,10 @@ function delBase(id){
 }
 
 /* ── MEAS TAB ── */
-function updateCodeSel(baseSource=baseItems,measSource=measurements){
-  const variants=baseSource.map(base=>{
+let _variantBaseSource=[];
+let _variantMeasSource=[];
+function buildVariantRows(baseSource,measSource){
+  return baseSource.map(base=>{
     let related=measSource.filter(m=>m.code===base.code && m.baseId!==null && m.baseId!==undefined && m.baseId!=='' && String(m.baseId)===String(base.id));
     if(!related.length){
       const firstBase=baseSource.find(i=>i.code===base.code);
@@ -1041,26 +1047,55 @@ function updateCodeSel(baseSource=baseItems,measSource=measurements){
     const latest=related.sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0))[0];
     return {base,latestDate:latest?fmtDate(latest.date):''};
   }).sort((a,b)=>b.latestDate.localeCompare(a.latestDate)||a.base.code.localeCompare(b.base.code)||String(a.base.color||'').localeCompare(String(b.base.color||'')));
-  const controls=[
-    {el:document.getElementById('cmpQ'),placeholder:'전체 제품코드 · 색상'},
-    {el:document.getElementById('mf_code'),placeholder:'-- 제품코드 · 색상 선택 --'}
-  ];
-  controls.forEach(({el,placeholder})=>{
-    if(!el) return;
-    const current=el.value;
-    el.innerHTML='';
-    el.add(new Option(placeholder,''));
-    variants.forEach(({base,latestDate})=>{
-      const label=`${base.code} · ${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`;
-      el.add(new Option(label,String(base.id)));
-    });
-    if([...el.options].some(o=>o.value===String(current))) el.value=String(current);
-  });
 }
-function onCodeSel(){ clearE('mf_code','me_code'); mLP(); }
+function updateCodeSel(baseSource=baseItems,measSource=measurements){
+  _variantBaseSource=baseSource;
+  _variantMeasSource=measSource;
+  const variants=buildVariantRows(baseSource,measSource);
+  const cmp=document.getElementById('cmpQ');
+  if(cmp){
+    const current=cmp.value;
+    cmp.innerHTML='';
+    cmp.add(new Option('전체 제품코드 · 색상',''));
+    variants.forEach(({base,latestDate})=>cmp.add(new Option(`${base.code} · ${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`,String(base.id))));
+    if([...cmp.options].some(o=>o.value===String(current))) cmp.value=String(current);
+  }
+  const codeSel=document.getElementById('mf_code');
+  const colorSel=document.getElementById('mf_color');
+  if(!codeSel||!colorSel) return;
+  const currentCode=codeSel.value;
+  const currentColor=colorSel.value;
+  const codes=[];
+  variants.forEach(v=>{
+    let item=codes.find(x=>x.code===v.base.code);
+    if(!item){item={code:v.base.code,latestDate:v.latestDate};codes.push(item);}
+    else if(v.latestDate>item.latestDate) item.latestDate=v.latestDate;
+  });
+  codes.sort((a,b)=>b.latestDate.localeCompare(a.latestDate)||a.code.localeCompare(b.code));
+  codeSel.innerHTML='';
+  codeSel.add(new Option('-- 제품코드 선택 --',''));
+  codes.forEach(x=>codeSel.add(new Option(`${x.code}${x.latestDate?` · 최근 ${x.latestDate}`:''}`,x.code)));
+  if([...codeSel.options].some(o=>o.value===String(currentCode))) codeSel.value=String(currentCode);
+  updateColorSel(currentColor);
+}
+function updateColorSel(preferredBaseId=''){
+  const codeSel=document.getElementById('mf_code');
+  const colorSel=document.getElementById('mf_color');
+  if(!codeSel||!colorSel) return;
+  const code=codeSel.value;
+  const current=preferredBaseId||colorSel.value;
+  colorSel.innerHTML='';
+  colorSel.add(new Option('-- 색상 선택 --',''));
+  const variants=buildVariantRows(_variantBaseSource,_variantMeasSource).filter(v=>v.base.code===code);
+  variants.forEach(({base,latestDate})=>colorSel.add(new Option(`${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`,String(base.id))));
+  colorSel.disabled=!code;
+  if([...colorSel.options].some(o=>o.value===String(current))) colorSel.value=String(current);
+}
+function onCodeSel(){ clearE('mf_code','me_code'); updateColorSel(''); clearE('mf_color','me_color'); mLP(); }
+function onColorSel(){ clearE('mf_color','me_color'); mLP(); }
 
 function mLP(){
-  const baseId=document.getElementById('mf_code').value;
+  const baseId=document.getElementById('mf_color').value;
   const w=parseFloat(document.getElementById('mf_w').value);
   const d=parseFloat(document.getElementById('mf_d').value);
   const h=parseFloat(document.getElementById('mf_h').value);
@@ -1084,7 +1119,9 @@ function openMeasForm(id){
   measEditId=id;
   const m=measurements.find(x=>x.id===id); if(!m) return;
   const selectedBase=baseItems.find(i=>String(i.id)===String(m.baseId))||baseItems.find(i=>i.code===m.code);
-  document.getElementById('mf_code').value=selectedBase?String(selectedBase.id):'';
+  document.getElementById('mf_code').value=selectedBase?selectedBase.code:'';
+  updateColorSel(selectedBase?String(selectedBase.id):'');
+  document.getElementById('mf_color').value=selectedBase?String(selectedBase.id):'';
   document.getElementById('mf_date').value=fmtDate(m.date);
   document.getElementById('mf_by').value=m.by||'';
   document.getElementById('mf_w').value=m.w;
@@ -1097,7 +1134,8 @@ function openMeasForm(id){
   renderMeas();
 }
 function saveMeas(){
-  const selectedBaseId=document.getElementById('mf_code').value;
+  const selectedCode=document.getElementById('mf_code').value;
+  const selectedBaseId=document.getElementById('mf_color').value;
   const selectedBase=baseItems.find(i=>String(i.id)===String(selectedBaseId));
   const code=selectedBase?selectedBase.code:'';
   const date=document.getElementById('mf_date').value;
@@ -1108,7 +1146,8 @@ function saveMeas(){
   const kg=parseFloat(document.getElementById('mf_kg').value);
   const memo='';
   let ok=true;
-  if(!code){showErr('mf_code','me_code');ok=false;}
+  if(!selectedCode){showErr('mf_code','me_code');ok=false;}
+  if(!selectedBase){showErr('mf_color','me_color');ok=false;}
   if(!date){showErr('mf_date','me_date');ok=false;}
   if(!(w>0)){showErr('mf_w','me_w');ok=false;}
   if(!(d>0)){showErr('mf_d','me_d');ok=false;}
@@ -1129,6 +1168,7 @@ function resetMeasForm(){
   measEditId=null;
   ['mf_w','mf_d','mf_h','mf_kg'].forEach(x=>document.getElementById(x).value='');
   document.getElementById('mf_code').value='';
+  updateColorSel('');
   document.getElementById('mf_by').value='';
   const t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력';
   document.getElementById('mf_date').value=new Date().toISOString().slice(0,10);
@@ -1926,7 +1966,7 @@ else window.addEventListener('load', initApp);
   };
   window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; } };
   window.resetBaseForm=function(){ compatBaseEditId=null; ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 입력'; if(byId('bBtnTxt')) byId('bBtnTxt').textContent='저장'; };
-  window.resetMeasForm=function(){ compatMeasEditId=null; ['mf_code','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력'; };
+  window.resetMeasForm=function(){ compatMeasEditId=null; ['mf_code','mf_color','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(typeof updateColorSel==='function') updateColorSel(''); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력'; };
   window.bLP=function(){};
   window.mLP=function(){};
   var compatBaseEditId = null;
@@ -1966,7 +2006,9 @@ else window.addEventListener('load', initApp);
       var selectedBase=null;
       for(var bIdx=0;bIdx<compatBase.length;bIdx++){ if(String(compatBase[bIdx].id)===String(m.baseId)){ selectedBase=compatBase[bIdx]; break; } }
       if(!selectedBase){ for(var cIdx=0;cIdx<compatBase.length;cIdx++){ if(compatBase[cIdx].code===m.code){ selectedBase=compatBase[cIdx]; break; } } }
-      byId('mf_code').value=selectedBase?String(selectedBase.id):'';
+      byId('mf_code').value=selectedBase?selectedBase.code:'';
+      if(typeof updateColorSel==='function') updateColorSel(selectedBase?String(selectedBase.id):'');
+      if(byId('mf_color')) byId('mf_color').value=selectedBase?String(selectedBase.id):'';
     }
     if(byId('mf_date')) byId('mf_date').value=fmtDateCompat(m.date)||'';
     if(byId('mf_by')) byId('mf_by').value=m.by||'';
@@ -1998,7 +2040,7 @@ else window.addEventListener('load', initApp);
     resetBaseForm(); updateCodeSel(compatBase,compatMeas); renderBaseCompat(); renderCompat(); syncCompat();
   };
   window.saveMeas=function(){
-    var selectedBaseId=(byId('mf_code')&&byId('mf_code').value||''), selectedBase=null;
+    var selectedBaseId=(byId('mf_color')&&byId('mf_color').value||''), selectedBase=null;
     for(var sIdx=0;sIdx<compatBase.length;sIdx++){ if(String(compatBase[sIdx].id)===String(selectedBaseId)){ selectedBase=compatBase[sIdx]; break; } }
     var code=selectedBase?selectedBase.code:'';
     var date=(byId('mf_date')&&byId('mf_date').value)||new Date().toISOString().slice(0,10);
