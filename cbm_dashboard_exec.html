@@ -58,7 +58,7 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 
 /* HERO */
 .hero{background:white;border-bottom:1px solid var(--g200);padding:1.8rem 2rem;overflow:hidden;}
-.hero-inner{max-width:1360px;margin:0 auto;}
+.hero-inner{width:100%;max-width:1760px;margin:0 auto;}
 .hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;}
 .hero-title h1{font-size:28px;font-weight:800;color:var(--g800);margin-bottom:4px;}
 .hero-title h1 em{color:var(--blue);font-style:normal;}
@@ -73,7 +73,7 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .hkpi-note textarea{width:100%;height:96px;border:none;background:transparent;resize:none;font-family:inherit;font-size:19px;font-weight:700;color:var(--g800);outline:none;line-height:1.65;overflow:hidden;display:block;}
 
 /* LAYOUT */
-.wrapper{max-width:calc(1360px + 4rem);margin:0 auto;padding:1.5rem 2rem 3rem;}
+.wrapper{width:100%;max-width:calc(1760px + 4rem);margin:0 auto;padding:1.5rem 2rem 3rem;}
 .pane{display:none;} .pane.active{display:block;}
 
 /* TOOLBAR */
@@ -104,7 +104,7 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 
 /* DETAIL MODAL */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
-.modal{background:white;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.22);width:100%;max-width:980px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
+.modal{background:white;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.22);width:100%;max-width:1120px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--g200);flex-shrink:0;}
 .modal-title{font-size:19px;font-weight:700;color:var(--g800);}
 .modal-sub{font-size:19px;color:var(--g400);margin-top:3px;}
@@ -1414,7 +1414,7 @@ function showDetail(code, baseId){
   const lv=latest;
   document.getElementById('detailModal').innerHTML=`
     <div class="modal-bg" onclick="if(event.target===this)closeDetail()">
-      <div class="modal" style="max-width:820px;">
+      <div class="modal" style="max-width:1120px;">
         <div class="modal-hdr">
           <div>
             <div class="modal-title">
@@ -1795,7 +1795,7 @@ else window.addEventListener('load', initApp);
     var hist='<div class="detail-sec" style="margin-bottom:6px;">전체 실측 이력</div><div style="overflow-x:auto;"><table class="dtbl"><thead><tr><th>측정일</th><th>측정자</th><th>가로</th><th>세로</th><th>높이</th><th>중량(kg)</th><th>CBM(m³)</th><th>판정</th><th>메모</th></tr></thead><tbody>';
     for(i=0;i<list.length;i++) hist+=histRow(list[i]);
     hist+=(list.length?'':'<tr><td colspan="9" class="empty-state" style="padding:16px;"><p>실측 데이터 없음</p></td></tr>')+'</tbody></table></div>';
-    byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal" style="max-width:820px;"><div class="modal-hdr"><div><div class="modal-title"><span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:'+hex+';border:1px solid #ccc;flex-shrink:0;display:inline-block;"></span>'+esc(b.code)+' · '+esc(b.name)+'</span></div><div class="modal-sub">'+esc(b.color||'')+' · 등록일 '+esc(b.createdAt||'-')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">✕</button></div><div class="modal-body">'+latestBody+hist+'</div></div></div>';
+    byId('detailModal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeDetail()"><div class="modal" style="max-width:1120px;"><div class="modal-hdr"><div><div class="modal-title"><span style="display:inline-flex;align-items:center;gap:7px;"><span style="width:11px;height:11px;border-radius:50%;background:'+hex+';border:1px solid #ccc;flex-shrink:0;display:inline-block;"></span>'+esc(b.code)+' · '+esc(b.name)+'</span></div><div class="modal-sub">'+esc(b.color||'')+' · 등록일 '+esc(b.createdAt||'-')+' · 실측 '+list.length+'건</div></div><button class="modal-close" onclick="closeDetail()">✕</button></div><div class="modal-body">'+latestBody+hist+'</div></div></div>';
     byId('detailModal').style.display='block';
   };
   window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; } };
