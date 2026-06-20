@@ -208,6 +208,9 @@ tr.clickable:hover td{background:var(--g50);cursor:pointer;}
 /* TABLE */
 .tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--g200);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 table{width:100%;border-collapse:collapse;font-size:19px;white-space:nowrap;}
+.meas-table{table-layout:fixed;min-width:1280px;}
+.meas-table th,.meas-table td{padding-left:10px;padding-right:10px;overflow:hidden;text-overflow:ellipsis;}
+.meas-table th:last-child,.meas-table td:last-child{padding-left:5px;padding-right:5px;overflow:visible;}
 thead tr{background:var(--g100);}
 th{padding:13px 16px;text-align:center;color:var(--g600);font-size:19px;font-weight:600;user-select:none;border-bottom:1px solid var(--g200);}
 td{padding:13px 16px;color:var(--g800);border-bottom:1px solid var(--g100);text-align:center;}
@@ -378,7 +381,12 @@ footer strong{color:var(--g600);}
   </div>
 
   <div class="tbl-wrap" style="margin-top:12px;">
-    <table>
+    <table class="meas-table">
+      <colgroup>
+        <col style="width:10%"><col style="width:11%"><col style="width:8%"><col style="width:12%">
+        <col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:9%">
+        <col style="width:8%"><col style="width:7%"><col style="width:7%"><col style="width:4%">
+      </colgroup>
       <thead><tr>
         <th>측정일</th><th>제품코드</th><th>색상</th><th>제품명칭</th>
         <th>가로(mm)</th><th>세로(mm)</th><th>높이(mm)</th>
