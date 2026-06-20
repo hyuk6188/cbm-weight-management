@@ -345,12 +345,14 @@ footer strong{color:var(--g600);}
     <div class="fp-body">
       <div class="fp-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="fp-field"><label>제품코드 *</label>
-          <select id="mf_code" onchange="onCodeSel()"><option value="">-- 제품코드 선택 --</option></select>
-          <span class="emsg" id="me_code">제품코드를 선택하세요</span>
+          <input id="mf_code" type="text" list="mf_code_list" placeholder="제품코드 입력..." oninput="onCodeSel()" style="text-transform:uppercase;">
+          <datalist id="mf_code_list"></datalist>
+          <span class="emsg" id="me_code">제품코드를 입력하세요</span>
         </div>
         <div class="fp-field"><label>색상 *</label>
-          <select id="mf_color" onchange="onColorSel()" disabled><option value="">-- 색상 선택 --</option></select>
-          <span class="emsg" id="me_color">색상을 선택하세요</span>
+          <input id="mf_color" type="text" list="mf_color_list" placeholder="색상 입력..." oninput="onColorSel()">
+          <datalist id="mf_color_list"></datalist>
+          <span class="emsg" id="me_color">색상을 입력하세요</span>
         </div>
         <div class="fp-field"><label>측정일 *</label><input id="mf_date" type="text" placeholder="YYYY-MM-DD" readonly><span class="emsg" id="me_date">날짜를 입력하세요</span></div>
         <div class="fp-field"><label>측정자</label>
@@ -1060,11 +1062,9 @@ function updateCodeSel(baseSource=baseItems,measSource=measurements){
     variants.forEach(({base,latestDate})=>cmp.add(new Option(`${base.code} · ${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`,String(base.id))));
     if([...cmp.options].some(o=>o.value===String(current))) cmp.value=String(current);
   }
-  const codeSel=document.getElementById('mf_code');
-  const colorSel=document.getElementById('mf_color');
-  if(!codeSel||!colorSel) return;
-  const currentCode=codeSel.value;
-  const currentColor=colorSel.value;
+  const codeInput=document.getElementById('mf_code');
+  const codeList=document.getElementById('mf_code_list');
+  if(!codeInput||!codeList) return;
   const codes=[];
   variants.forEach(v=>{
     let item=codes.find(x=>x.code===v.base.code);
@@ -1072,36 +1072,54 @@ function updateCodeSel(baseSource=baseItems,measSource=measurements){
     else if(v.latestDate>item.latestDate) item.latestDate=v.latestDate;
   });
   codes.sort((a,b)=>b.latestDate.localeCompare(a.latestDate)||a.code.localeCompare(b.code));
-  codeSel.innerHTML='';
-  codeSel.add(new Option('-- 제품코드 선택 --',''));
-  codes.forEach(x=>codeSel.add(new Option(`${x.code}${x.latestDate?` · 최근 ${x.latestDate}`:''}`,x.code)));
-  if([...codeSel.options].some(o=>o.value===String(currentCode))) codeSel.value=String(currentCode);
-  updateColorSel(currentColor);
+  codeList.innerHTML='';
+  codes.forEach(x=>{
+    const option=document.createElement('option');
+    option.value=x.code;
+    option.label=x.latestDate?`최근 ${x.latestDate}`:'실측 없음';
+    codeList.appendChild(option);
+  });
+  updateColorSel();
 }
-function updateColorSel(preferredBaseId=''){
-  const codeSel=document.getElementById('mf_code');
-  const colorSel=document.getElementById('mf_color');
-  if(!codeSel||!colorSel) return;
-  const code=codeSel.value;
-  const current=preferredBaseId||colorSel.value;
-  colorSel.innerHTML='';
-  colorSel.add(new Option('-- 색상 선택 --',''));
-  const variants=buildVariantRows(_variantBaseSource,_variantMeasSource).filter(v=>v.base.code===code);
-  variants.forEach(({base,latestDate})=>colorSel.add(new Option(`${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`,String(base.id))));
-  colorSel.disabled=!code;
-  if([...colorSel.options].some(o=>o.value===String(current))) colorSel.value=String(current);
+function updateColorSel(preferredColor=''){
+  const codeInput=document.getElementById('mf_code');
+  const colorInput=document.getElementById('mf_color');
+  const colorList=document.getElementById('mf_color_list');
+  if(!codeInput||!colorInput||!colorList) return;
+  const code=codeInput.value.trim().toUpperCase();
+  colorList.innerHTML='';
+  const variants=buildVariantRows(_variantBaseSource,_variantMeasSource).filter(v=>String(v.base.code||'').trim().toUpperCase()===code);
+  variants.forEach(({base,latestDate})=>{
+    const option=document.createElement('option');
+    option.value=base.color||'';
+    option.label=latestDate?`최근 ${latestDate}`:'실측 없음';
+    colorList.appendChild(option);
+  });
+  if(preferredColor) colorInput.value=preferredColor;
 }
-function onCodeSel(){ clearE('mf_code','me_code'); updateColorSel(''); clearE('mf_color','me_color'); mLP(); }
+function findBaseByCodeColor(code,color,source=baseItems){
+  const normalizedCode=String(code||'').trim().toUpperCase();
+  const normalizedColor=String(color||'').trim().toUpperCase();
+  return source.find(item=>String(item.code||'').trim().toUpperCase()===normalizedCode && String(item.color||'').trim().toUpperCase()===normalizedColor);
+}
+function onCodeSel(){
+  const codeInput=document.getElementById('mf_code');
+  const colorInput=document.getElementById('mf_color');
+  codeInput.value=codeInput.value.toUpperCase();
+  if(colorInput.value && !findBaseByCodeColor(codeInput.value,colorInput.value,_variantBaseSource)) colorInput.value='';
+  clearE('mf_code','me_code'); updateColorSel(); clearE('mf_color','me_color'); mLP();
+}
 function onColorSel(){ clearE('mf_color','me_color'); mLP(); }
 
 function mLP(){
-  const baseId=document.getElementById('mf_color').value;
+  const code=document.getElementById('mf_code').value;
+  const color=document.getElementById('mf_color').value;
   const w=parseFloat(document.getElementById('mf_w').value);
   const d=parseFloat(document.getElementById('mf_d').value);
   const h=parseFloat(document.getElementById('mf_h').value);
   const kg=parseFloat(document.getElementById('mf_kg').value);
   const wrap=document.getElementById('mPrevWrap');
-  const base=baseItems.find(i=>String(i.id)===String(baseId));
+  const base=findBaseByCodeColor(code,color);
   if(!base||!(w>0&&d>0&&h>0&&kg>0)){wrap.style.display='none';return;}
   wrap.style.display='block';
   const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(w,d,h);
@@ -1120,8 +1138,8 @@ function openMeasForm(id){
   const m=measurements.find(x=>x.id===id); if(!m) return;
   const selectedBase=baseItems.find(i=>String(i.id)===String(m.baseId))||baseItems.find(i=>i.code===m.code);
   document.getElementById('mf_code').value=selectedBase?selectedBase.code:'';
-  updateColorSel(selectedBase?String(selectedBase.id):'');
-  document.getElementById('mf_color').value=selectedBase?String(selectedBase.id):'';
+  updateColorSel(selectedBase?selectedBase.color:'');
+  document.getElementById('mf_color').value=selectedBase?selectedBase.color:'';
   document.getElementById('mf_date').value=fmtDate(m.date);
   document.getElementById('mf_by').value=m.by||'';
   document.getElementById('mf_w').value=m.w;
@@ -1134,9 +1152,9 @@ function openMeasForm(id){
   renderMeas();
 }
 function saveMeas(){
-  const selectedCode=document.getElementById('mf_code').value;
-  const selectedBaseId=document.getElementById('mf_color').value;
-  const selectedBase=baseItems.find(i=>String(i.id)===String(selectedBaseId));
+  const selectedCode=document.getElementById('mf_code').value.trim().toUpperCase();
+  const selectedColor=document.getElementById('mf_color').value.trim();
+  const selectedBase=findBaseByCodeColor(selectedCode,selectedColor);
   const code=selectedBase?selectedBase.code:'';
   const date=document.getElementById('mf_date').value;
   const by=document.getElementById('mf_by').value.trim();
@@ -1147,7 +1165,7 @@ function saveMeas(){
   const memo='';
   let ok=true;
   if(!selectedCode){showErr('mf_code','me_code');ok=false;}
-  if(!selectedBase){showErr('mf_color','me_color');ok=false;}
+  if(!selectedColor||!selectedBase){showErr('mf_color','me_color');ok=false;}
   if(!date){showErr('mf_date','me_date');ok=false;}
   if(!(w>0)){showErr('mf_w','me_w');ok=false;}
   if(!(d>0)){showErr('mf_d','me_d');ok=false;}
@@ -1168,7 +1186,8 @@ function resetMeasForm(){
   measEditId=null;
   ['mf_w','mf_d','mf_h','mf_kg'].forEach(x=>document.getElementById(x).value='');
   document.getElementById('mf_code').value='';
-  updateColorSel('');
+  document.getElementById('mf_color').value='';
+  updateColorSel();
   document.getElementById('mf_by').value='';
   const t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력';
   document.getElementById('mf_date').value=new Date().toISOString().slice(0,10);
@@ -1966,7 +1985,7 @@ else window.addEventListener('load', initApp);
   };
   window.closeDetail=function(){ if(byId('detailModal')){ byId('detailModal').style.display='none'; byId('detailModal').innerHTML=''; } };
   window.resetBaseForm=function(){ compatBaseEditId=null; ['bf_code','bf_color','bf_name','bf_w','bf_d','bf_h','bf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 입력'; if(byId('bBtnTxt')) byId('bBtnTxt').textContent='저장'; };
-  window.resetMeasForm=function(){ compatMeasEditId=null; ['mf_code','mf_color','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(typeof updateColorSel==='function') updateColorSel(''); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력'; };
+  window.resetMeasForm=function(){ compatMeasEditId=null; ['mf_code','mf_color','mf_w','mf_d','mf_h','mf_kg'].forEach(function(id){ if(byId(id)) byId(id).value=''; }); if(typeof updateColorSel==='function') updateColorSel(); if(byId('mf_by')) byId('mf_by').value=''; if(byId('mf_date')) byId('mf_date').value=new Date().toISOString().slice(0,10); var t=document.querySelector('#pane-meas .fp-hdr .fp-title'); if(t) t.textContent='실측 데이터 입력'; };
   window.bLP=function(){};
   window.mLP=function(){};
   var compatBaseEditId = null;
@@ -2007,8 +2026,8 @@ else window.addEventListener('load', initApp);
       for(var bIdx=0;bIdx<compatBase.length;bIdx++){ if(String(compatBase[bIdx].id)===String(m.baseId)){ selectedBase=compatBase[bIdx]; break; } }
       if(!selectedBase){ for(var cIdx=0;cIdx<compatBase.length;cIdx++){ if(compatBase[cIdx].code===m.code){ selectedBase=compatBase[cIdx]; break; } } }
       byId('mf_code').value=selectedBase?selectedBase.code:'';
-      if(typeof updateColorSel==='function') updateColorSel(selectedBase?String(selectedBase.id):'');
-      if(byId('mf_color')) byId('mf_color').value=selectedBase?String(selectedBase.id):'';
+      if(typeof updateColorSel==='function') updateColorSel(selectedBase?selectedBase.color:'');
+      if(byId('mf_color')) byId('mf_color').value=selectedBase?selectedBase.color:'';
     }
     if(byId('mf_date')) byId('mf_date').value=fmtDateCompat(m.date)||'';
     if(byId('mf_by')) byId('mf_by').value=m.by||'';
@@ -2040,12 +2059,15 @@ else window.addEventListener('load', initApp);
     resetBaseForm(); updateCodeSel(compatBase,compatMeas); renderBaseCompat(); renderCompat(); syncCompat();
   };
   window.saveMeas=function(){
-    var selectedBaseId=(byId('mf_color')&&byId('mf_color').value||''), selectedBase=null;
-    for(var sIdx=0;sIdx<compatBase.length;sIdx++){ if(String(compatBase[sIdx].id)===String(selectedBaseId)){ selectedBase=compatBase[sIdx]; break; } }
+    var selectedCode=(byId('mf_code')&&byId('mf_code').value||'').trim().toUpperCase();
+    var selectedColor=(byId('mf_color')&&byId('mf_color').value||'').trim(), selectedBase=null;
+    for(var sIdx=0;sIdx<compatBase.length;sIdx++){
+      if(String(compatBase[sIdx].code||'').trim().toUpperCase()===selectedCode && String(compatBase[sIdx].color||'').trim().toUpperCase()===selectedColor.toUpperCase()){ selectedBase=compatBase[sIdx]; break; }
+    }
     var code=selectedBase?selectedBase.code:'';
     var date=(byId('mf_date')&&byId('mf_date').value)||new Date().toISOString().slice(0,10);
     var w=Number(byId('mf_w')&&byId('mf_w').value), d=Number(byId('mf_d')&&byId('mf_d').value), h=Number(byId('mf_h')&&byId('mf_h').value), kg=Number(byId('mf_kg')&&byId('mf_kg').value);
-    if(!code||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('필수 항목을 입력해 주세요.'); return; }
+    if(!code||!selectedColor||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('기준 데이터에 등록된 제품코드와 색상 조합을 입력해 주세요.'); return; }
     var baseId=selectedBase?selectedBase.id:null;
     if(compatMeasEditId!==null){
       for(var j=0;j<compatMeas.length;j++){ if(String(compatMeas[j].id)===String(compatMeasEditId)){ compatMeas[j]={id:compatMeas[j].id,code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:compatMeas[j].memo||''}; break; } }
