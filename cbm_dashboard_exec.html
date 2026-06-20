@@ -94,6 +94,8 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .msb-input-wrap{flex:1;}
 .variant-select{height:38px;padding:0 34px 0 12px;border:1px solid var(--g200);border-radius:6px;background:var(--g50);color:var(--g800);font-family:inherit;font-size:18px;outline:none;cursor:pointer;}
 .variant-select:focus{border-color:var(--blue);background:white;}
+.variant-search{height:38px;padding:0 12px;border:1px solid var(--g200);border-radius:6px;background:var(--g50);color:var(--g800);font-family:inherit;font-size:18px;outline:none;}
+.variant-search:focus{border-color:var(--blue);background:white;box-shadow:0 0 0 2px rgba(26,86,219,.08);}
 .msb-dates{display:flex;align-items:center;gap:4px;min-width:0;}
 .msb-dates input{height:38px;font-size:19px;padding:0 10px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);color:var(--g800);width:165px;min-width:0;cursor:pointer;}
 .msb-dates input:focus{border-color:var(--blue);background:white;}
@@ -432,12 +434,14 @@ footer strong{color:var(--g600);}
   <div class="msb" style="flex-wrap:nowrap;margin-bottom:8px;">
     <div class="msb-group">
       <span class="msb-label">제품코드</span>
-      <select id="cmpCode" class="variant-select" style="width:220px;" onchange="renderCompare()"><option value="">전체 제품코드</option></select>
+      <input id="cmpCode" class="variant-search" style="width:220px;text-transform:uppercase;" type="text" list="cmpCodeList" placeholder="제품코드 입력..." autocomplete="off" oninput="this.value=this.value.toUpperCase();renderCompare()">
+      <datalist id="cmpCodeList"></datalist>
     </div>
     <div class="msb-div" style="height:22px;"></div>
     <div class="msb-group">
       <span class="msb-label">색상</span>
-      <select id="cmpColor" class="variant-select" style="width:180px;" onchange="renderCompare()"><option value="">전체 색상</option></select>
+      <input id="cmpColor" class="variant-search" style="width:180px;" type="text" list="cmpColorList" placeholder="색상 입력..." autocomplete="off" oninput="renderCompare()">
+      <datalist id="cmpColorList"></datalist>
     </div>
     <div class="msb-div" style="height:22px;"></div>
     <div class="msb-group">
@@ -1084,23 +1088,17 @@ function updateCodeSel(baseSource=baseItems,measSource=measurements){
   _variantBaseSource=baseSource;
   _variantMeasSource=measSource;
   const variants=buildVariantRows(baseSource,measSource);
-  const cmpCode=document.getElementById('cmpCode');
-  const cmpColor=document.getElementById('cmpColor');
-  if(cmpCode){
-    const currentCode=cmpCode.value;
+  const cmpCodeList=document.getElementById('cmpCodeList');
+  const cmpColorList=document.getElementById('cmpColorList');
+  if(cmpCodeList){
     const codes=[...new Set(variants.map(({base})=>String(base.code||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-    cmpCode.innerHTML='';
-    cmpCode.add(new Option('전체 제품코드',''));
-    codes.forEach(code=>cmpCode.add(new Option(code,code)));
-    if(codes.includes(currentCode)) cmpCode.value=currentCode;
+    cmpCodeList.innerHTML='';
+    codes.forEach(code=>{const option=document.createElement('option');option.value=code;cmpCodeList.appendChild(option);});
   }
-  if(cmpColor){
-    const currentColor=cmpColor.value;
+  if(cmpColorList){
     const colors=[...new Set(variants.map(({base})=>String(base.color||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-    cmpColor.innerHTML='';
-    cmpColor.add(new Option('전체 색상',''));
-    colors.forEach(color=>cmpColor.add(new Option(color,color)));
-    if(colors.includes(currentColor)) cmpColor.value=currentColor;
+    cmpColorList.innerHTML='';
+    colors.forEach(color=>{const option=document.createElement('option');option.value=color;cmpColorList.appendChild(option);});
   }
   const codeInput=document.getElementById('mf_code');
   const codeList=document.getElementById('mf_code_list');
@@ -1271,14 +1269,14 @@ function renderMeas(){
 function renderCompare(){
   ensureSeedData();
   const tol=parseFloat(document.getElementById('tol').value)||5;
-  const selectedCode=(document.getElementById('cmpCode')||{value:''}).value;
-  const selectedColor=(document.getElementById('cmpColor')||{value:''}).value;
+  const selectedCode=(document.getElementById('cmpCode')||{value:''}).value.trim().toUpperCase();
+  const selectedColor=(document.getElementById('cmpColor')||{value:''}).value.trim().toUpperCase();
   const from=(document.getElementById('cmpFrom')||{value:''}).value;
   const to=(document.getElementById('cmpTo')||{value:''}).value;
   const rows=[];
   baseItems.forEach(base=>{
-    if(selectedCode && String(base.code)!==selectedCode) return;
-    if(selectedColor && String(base.color||'')!==selectedColor) return;
+    if(selectedCode && !String(base.code||'').toUpperCase().includes(selectedCode)) return;
+    if(selectedColor && !String(base.color||'').toUpperCase().includes(selectedColor)) return;
     const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0));
     if(!mList.length) return;
     const m=mList[0];
@@ -1330,12 +1328,12 @@ function exportCompareExcel(){
   const tol=parseFloat(document.getElementById('tol').value)||5;
   const from=document.getElementById('cmpFrom').value;
   const to=document.getElementById('cmpTo').value;
-  const selectedCode=document.getElementById('cmpCode').value||'';
-  const selectedColor=document.getElementById('cmpColor').value||'';
+  const selectedCode=(document.getElementById('cmpCode').value||'').trim().toUpperCase();
+  const selectedColor=(document.getElementById('cmpColor').value||'').trim().toUpperCase();
   const rows=[['제품코드','색상','제품명칭','가로 차이','세로 차이','높이 차이','CBM 차이','중량 차이','판정','측정일']];
   baseItems.forEach(base=>{
-    if(selectedCode && String(base.code)!==selectedCode) return;
-    if(selectedColor && String(base.color||'')!==selectedColor) return;
+    if(selectedCode && !String(base.code||'').toUpperCase().includes(selectedCode)) return;
+    if(selectedColor && !String(base.color||'').toUpperCase().includes(selectedColor)) return;
     const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0));
     if(!mList.length) return;
     const m=mList[0];
@@ -1862,12 +1860,12 @@ else window.addEventListener('load', initApp);
     }
     var base = compatBase;
     var meas = compatMeas;
-    var selectedCode=byId('cmpCode')?byId('cmpCode').value:'', selectedColor=byId('cmpColor')?byId('cmpColor').value:'', from=byId('cmpFrom')?byId('cmpFrom').value:'', to=byId('cmpTo')?byId('cmpTo').value:'', tol=Number(byId('tol')&&byId('tol').value)||5;
+    var selectedCode=byId('cmpCode')?String(byId('cmpCode').value||'').trim().toUpperCase():'', selectedColor=byId('cmpColor')?String(byId('cmpColor').value||'').trim().toUpperCase():'', from=byId('cmpFrom')?byId('cmpFrom').value:'', to=byId('cmpTo')?byId('cmpTo').value:'', tol=Number(byId('tol')&&byId('tol').value)||5;
     var total=0, ok=0, err=0, rows=[];
     for(var i=0;i<base.length;i++){
       var b=base[i];
-      if(selectedCode && String(b.code)!==String(selectedCode)) continue;
-      if(selectedColor && String(b.color||'')!==String(selectedColor)) continue;
+      if(selectedCode && String(b.code||'').toUpperCase().indexOf(selectedCode)===-1) continue;
+      if(selectedColor && String(b.color||'').toUpperCase().indexOf(selectedColor)===-1) continue;
       var m=latestFor(b, meas);
       if(!m) continue;
       var mDate=fmtDateCompat(m.date);
