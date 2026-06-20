@@ -431,8 +431,13 @@ footer strong{color:var(--g600);}
 
   <div class="msb" style="flex-wrap:nowrap;margin-bottom:8px;">
     <div class="msb-group">
-      <span class="msb-label">제품코드 · 색상</span>
-      <select id="cmpQ" class="variant-select" style="width:290px;" onchange="renderCompare()"><option value="">전체 제품코드 · 색상</option></select>
+      <span class="msb-label">제품코드</span>
+      <select id="cmpCode" class="variant-select" style="width:220px;" onchange="renderCompare()"><option value="">전체 제품코드</option></select>
+    </div>
+    <div class="msb-div" style="height:22px;"></div>
+    <div class="msb-group">
+      <span class="msb-label">색상</span>
+      <select id="cmpColor" class="variant-select" style="width:180px;" onchange="renderCompare()"><option value="">전체 색상</option></select>
     </div>
     <div class="msb-div" style="height:22px;"></div>
     <div class="msb-group">
@@ -923,7 +928,8 @@ function setCmpStatus(s){
   renderCompare();
 }
 function resetCmpFilters(){
-  document.getElementById('cmpQ').value='';
+  document.getElementById('cmpCode').value='';
+  document.getElementById('cmpColor').value='';
   setCmpStatus('all');
   applyWeekFilter();
 }
@@ -1078,13 +1084,23 @@ function updateCodeSel(baseSource=baseItems,measSource=measurements){
   _variantBaseSource=baseSource;
   _variantMeasSource=measSource;
   const variants=buildVariantRows(baseSource,measSource);
-  const cmp=document.getElementById('cmpQ');
-  if(cmp){
-    const current=cmp.value;
-    cmp.innerHTML='';
-    cmp.add(new Option('전체 제품코드 · 색상',''));
-    variants.forEach(({base,latestDate})=>cmp.add(new Option(`${base.code} · ${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`,String(base.id))));
-    if([...cmp.options].some(o=>o.value===String(current))) cmp.value=String(current);
+  const cmpCode=document.getElementById('cmpCode');
+  const cmpColor=document.getElementById('cmpColor');
+  if(cmpCode){
+    const currentCode=cmpCode.value;
+    const codes=[...new Set(variants.map(({base})=>String(base.code||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    cmpCode.innerHTML='';
+    cmpCode.add(new Option('전체 제품코드',''));
+    codes.forEach(code=>cmpCode.add(new Option(code,code)));
+    if(codes.includes(currentCode)) cmpCode.value=currentCode;
+  }
+  if(cmpColor){
+    const currentColor=cmpColor.value;
+    const colors=[...new Set(variants.map(({base})=>String(base.color||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    cmpColor.innerHTML='';
+    cmpColor.add(new Option('전체 색상',''));
+    colors.forEach(color=>cmpColor.add(new Option(color,color)));
+    if(colors.includes(currentColor)) cmpColor.value=currentColor;
   }
   const codeInput=document.getElementById('mf_code');
   const codeList=document.getElementById('mf_code_list');
@@ -1255,12 +1271,14 @@ function renderMeas(){
 function renderCompare(){
   ensureSeedData();
   const tol=parseFloat(document.getElementById('tol').value)||5;
-  const selectedBaseId=(document.getElementById('cmpQ')||{value:''}).value;
+  const selectedCode=(document.getElementById('cmpCode')||{value:''}).value;
+  const selectedColor=(document.getElementById('cmpColor')||{value:''}).value;
   const from=(document.getElementById('cmpFrom')||{value:''}).value;
   const to=(document.getElementById('cmpTo')||{value:''}).value;
   const rows=[];
   baseItems.forEach(base=>{
-    if(selectedBaseId && String(base.id)!==String(selectedBaseId)) return;
+    if(selectedCode && String(base.code)!==selectedCode) return;
+    if(selectedColor && String(base.color||'')!==selectedColor) return;
     const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0));
     if(!mList.length) return;
     const m=mList[0];
@@ -1312,10 +1330,12 @@ function exportCompareExcel(){
   const tol=parseFloat(document.getElementById('tol').value)||5;
   const from=document.getElementById('cmpFrom').value;
   const to=document.getElementById('cmpTo').value;
-  const selectedBaseId=document.getElementById('cmpQ').value||'';
+  const selectedCode=document.getElementById('cmpCode').value||'';
+  const selectedColor=document.getElementById('cmpColor').value||'';
   const rows=[['제품코드','색상','제품명칭','가로 차이','세로 차이','높이 차이','CBM 차이','중량 차이','판정','측정일']];
   baseItems.forEach(base=>{
-    if(selectedBaseId && String(base.id)!==String(selectedBaseId)) return;
+    if(selectedCode && String(base.code)!==selectedCode) return;
+    if(selectedColor && String(base.color||'')!==selectedColor) return;
     const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0));
     if(!mList.length) return;
     const m=mList[0];
@@ -1842,11 +1862,12 @@ else window.addEventListener('load', initApp);
     }
     var base = compatBase;
     var meas = compatMeas;
-    var selectedBaseId=byId('cmpQ')?byId('cmpQ').value:'', from=byId('cmpFrom')?byId('cmpFrom').value:'', to=byId('cmpTo')?byId('cmpTo').value:'', tol=Number(byId('tol')&&byId('tol').value)||5;
+    var selectedCode=byId('cmpCode')?byId('cmpCode').value:'', selectedColor=byId('cmpColor')?byId('cmpColor').value:'', from=byId('cmpFrom')?byId('cmpFrom').value:'', to=byId('cmpTo')?byId('cmpTo').value:'', tol=Number(byId('tol')&&byId('tol').value)||5;
     var total=0, ok=0, err=0, rows=[];
     for(var i=0;i<base.length;i++){
       var b=base[i];
-      if(selectedBaseId && String(b.id)!==String(selectedBaseId)) continue;
+      if(selectedCode && String(b.code)!==String(selectedCode)) continue;
+      if(selectedColor && String(b.color||'')!==String(selectedColor)) continue;
       var m=latestFor(b, meas);
       if(!m) continue;
       var mDate=fmtDateCompat(m.date);
