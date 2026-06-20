@@ -92,6 +92,8 @@ nav{position:sticky;top:0;z-index:100;background:white;display:flex;align-items:
 .msb-group{display:flex;align-items:center;gap:10px;flex-shrink:0;}
 .msb-label{font-size:19px;font-weight:500;color:var(--g400);white-space:nowrap;margin:0;}
 .msb-input-wrap{flex:1;}
+.variant-select{height:38px;padding:0 34px 0 12px;border:1px solid var(--g200);border-radius:6px;background:var(--g50);color:var(--g800);font-family:inherit;font-size:18px;outline:none;cursor:pointer;}
+.variant-select:focus{border-color:var(--blue);background:white;}
 .msb-dates{display:flex;align-items:center;gap:4px;min-width:0;}
 .msb-dates input{height:38px;font-size:19px;padding:0 10px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);color:var(--g800);width:165px;min-width:0;cursor:pointer;}
 .msb-dates input:focus{border-color:var(--blue);background:white;}
@@ -174,6 +176,7 @@ tr.clickable:hover td{background:var(--g50);cursor:pointer;}
 .fp-field label{font-size:19px;color:var(--g600);font-weight:500;}
 .fp-field input,.fp-field select,.fp-field textarea{height:38px;font-size:19px;padding:0 12px;border:1px solid var(--g200);border-radius:6px;font-family:inherit;outline:none;background:var(--g50);}
 #mf_date{height:46px;min-width:220px;padding:0 15px;font-size:21px;font-weight:500;letter-spacing:.2px;background:var(--g50);cursor:pointer;}
+#mf_code,#mf_by{height:46px;}
 #mf_date::-webkit-calendar-picker-indicator{width:23px;height:23px;padding:5px;cursor:pointer;opacity:.8;}
 #mf_date:hover{border-color:#B8C4D8;}
 .flatpickr-calendar.large-date-calendar{width:392px;padding:10px;border:1px solid var(--g200);border-radius:14px;box-shadow:0 14px 38px rgba(15,23,42,.2);font-family:'Pretendard',sans-serif;}
@@ -342,9 +345,9 @@ footer strong{color:var(--g600);}
     <div class="fp-hdr"><span class="fp-title">실측 데이터 입력</span></div>
     <div class="fp-body">
       <div class="fp-grid" style="grid-template-columns:repeat(3,1fr);">
-        <div class="fp-field"><label>제품코드 *</label>
-          <input id="mf_code" type="text" placeholder="제품코드 입력..." oninput="clearE('mf_code','me_code');mLP();" style="text-transform:uppercase;">
-          <span class="emsg" id="me_code">제품코드를 입력하세요</span>
+        <div class="fp-field"><label>제품코드 · 색상 *</label>
+          <select id="mf_code" onchange="onCodeSel()"><option value="">-- 제품코드 · 색상 선택 --</option></select>
+          <span class="emsg" id="me_code">제품코드와 색상을 선택하세요</span>
         </div>
         <div class="fp-field"><label>측정일 *</label><input id="mf_date" type="text" placeholder="YYYY-MM-DD" readonly><span class="emsg" id="me_date">날짜를 입력하세요</span></div>
         <div class="fp-field"><label>측정자</label>
@@ -404,11 +407,8 @@ footer strong{color:var(--g600);}
 
   <div class="msb" style="flex-wrap:nowrap;margin-bottom:8px;">
     <div class="msb-group">
-      <span class="msb-label">제품코드</span>
-      <div class="sb-input-wrap msb-input-wrap" style="width:165px;flex:none;">
-        <svg class="sb-icon" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="#94A3B8" stroke-width="1.6"/><path d="M13 13L17 17" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <input id="cmpQ" class="sb-input" placeholder="코드 입력..." oninput="renderCompare()">
-      </div>
+      <span class="msb-label">제품코드 · 색상</span>
+      <select id="cmpQ" class="variant-select" style="width:290px;" onchange="renderCompare()"><option value="">전체 제품코드 · 색상</option></select>
     </div>
     <div class="msb-div" style="height:22px;"></div>
     <div class="msb-group">
@@ -845,7 +845,7 @@ function renderKPI(){
     const mList=measurementsForBase(base);
     if(!mList.length) return;
     total++;
-    const m=mList.sort((a,b)=>b.id-a.id)[0];
+    const m=mList.sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0))[0];
     const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
     const maxP=Math.max(
       base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
@@ -1031,17 +1031,43 @@ function delBase(id){
 }
 
 /* ── MEAS TAB ── */
-function updateCodeSel(){ /* select → input으로 변경, 불필요 */ }
+function updateCodeSel(baseSource=baseItems,measSource=measurements){
+  const variants=baseSource.map(base=>{
+    let related=measSource.filter(m=>m.code===base.code && m.baseId!==null && m.baseId!==undefined && m.baseId!=='' && String(m.baseId)===String(base.id));
+    if(!related.length){
+      const firstBase=baseSource.find(i=>i.code===base.code);
+      related=firstBase && String(firstBase.id)===String(base.id)
+        ?measSource.filter(m=>m.code===base.code && (m.baseId===null || m.baseId===undefined || m.baseId==='')):[];
+    }
+    const latest=related.sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0))[0];
+    return {base,latestDate:latest?fmtDate(latest.date):''};
+  }).sort((a,b)=>b.latestDate.localeCompare(a.latestDate)||a.base.code.localeCompare(b.base.code)||String(a.base.color||'').localeCompare(String(b.base.color||'')));
+  const controls=[
+    {el:document.getElementById('cmpQ'),placeholder:'전체 제품코드 · 색상'},
+    {el:document.getElementById('mf_code'),placeholder:'-- 제품코드 · 색상 선택 --'}
+  ];
+  controls.forEach(({el,placeholder})=>{
+    if(!el) return;
+    const current=el.value;
+    el.innerHTML='';
+    el.add(new Option(placeholder,''));
+    variants.forEach(({base,latestDate})=>{
+      const label=`${base.code} · ${base.color||'색상 없음'}${latestDate?` · 최근 ${latestDate}`:' · 실측 없음'}`;
+      el.add(new Option(label,String(base.id)));
+    });
+    if([...el.options].some(o=>o.value===String(current))) el.value=String(current);
+  });
+}
 function onCodeSel(){ clearE('mf_code','me_code'); mLP(); }
 
 function mLP(){
-  const code=document.getElementById('mf_code').value;
+  const baseId=document.getElementById('mf_code').value;
   const w=parseFloat(document.getElementById('mf_w').value);
   const d=parseFloat(document.getElementById('mf_d').value);
   const h=parseFloat(document.getElementById('mf_h').value);
   const kg=parseFloat(document.getElementById('mf_kg').value);
   const wrap=document.getElementById('mPrevWrap');
-  const base=baseItems.find(i=>i.code===code);
+  const base=baseItems.find(i=>String(i.id)===String(baseId));
   if(!base||!(w>0&&d>0&&h>0&&kg>0)){wrap.style.display='none';return;}
   wrap.style.display='block';
   const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(w,d,h);
@@ -1058,7 +1084,8 @@ function mLP(){
 function openMeasForm(id){
   measEditId=id;
   const m=measurements.find(x=>x.id===id); if(!m) return;
-  document.getElementById('mf_code').value=m.code;
+  const selectedBase=baseItems.find(i=>String(i.id)===String(m.baseId))||baseItems.find(i=>i.code===m.code);
+  document.getElementById('mf_code').value=selectedBase?String(selectedBase.id):'';
   document.getElementById('mf_date').value=fmtDate(m.date);
   document.getElementById('mf_by').value=m.by||'';
   document.getElementById('mf_w').value=m.w;
@@ -1071,7 +1098,9 @@ function openMeasForm(id){
   renderMeas();
 }
 function saveMeas(){
-  const code=document.getElementById('mf_code').value;
+  const selectedBaseId=document.getElementById('mf_code').value;
+  const selectedBase=baseItems.find(i=>String(i.id)===String(selectedBaseId));
+  const code=selectedBase?selectedBase.code:'';
   const date=document.getElementById('mf_date').value;
   const by=document.getElementById('mf_by').value.trim();
   const w=parseFloat(document.getElementById('mf_w').value);
@@ -1089,13 +1118,13 @@ function saveMeas(){
   if(!ok) return;
   if(measEditId!==null){
     const idx=measurements.findIndex(x=>x.id===measEditId);
-    if(idx!==-1){const baseId=baseItems.find(i=>i.code===code)?.id||measurements[idx].baseId||null;measurements[idx]={...measurements[idx],code,baseId,date,by,w,d,h,kg,memo};}
+    if(idx!==-1){const baseId=selectedBase?selectedBase.id:measurements[idx].baseId||null;measurements[idx]={...measurements[idx],code,baseId,date,by,w,d,h,kg,memo};}
     measEditId=null;
   } else {
-    const baseId=baseItems.find(i=>i.code===code)?.id||null;
+    const baseId=selectedBase?selectedBase.id:null;
     measurements.push({id:Date.now(),code,baseId,date,by,w,d,h,kg,memo});
   }
-  persistMeas(); resetMeasForm(); renderKPI(); renderCompare(); renderMeas();
+  persistMeas(); resetMeasForm(); updateCodeSel(); renderKPI(); renderCompare(); renderMeas();
 }
 function resetMeasForm(){
   measEditId=null;
@@ -1154,13 +1183,13 @@ function renderMeas(){
 function renderCompare(){
   ensureSeedData();
   const tol=parseFloat(document.getElementById('tol').value)||5;
-  const q=(document.getElementById('cmpQ')||{value:''}).value.toLowerCase();
+  const selectedBaseId=(document.getElementById('cmpQ')||{value:''}).value;
   const from=(document.getElementById('cmpFrom')||{value:''}).value;
   const to=(document.getElementById('cmpTo')||{value:''}).value;
   const rows=[];
   baseItems.forEach(base=>{
-    if(q && !base.code.toLowerCase().includes(q) && !base.name.toLowerCase().includes(q)) return;
-    const mList=measurementsForBase(base).sort((a,b)=>b.id-a.id);
+    if(selectedBaseId && String(base.id)!==String(selectedBaseId)) return;
+    const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0));
     if(!mList.length) return;
     const m=mList[0];
     const mDate=fmtDate(m.date);
@@ -1211,11 +1240,11 @@ function exportCompareExcel(){
   const tol=parseFloat(document.getElementById('tol').value)||5;
   const from=document.getElementById('cmpFrom').value;
   const to=document.getElementById('cmpTo').value;
-  const q=(document.getElementById('cmpQ').value||'').toLowerCase();
+  const selectedBaseId=document.getElementById('cmpQ').value||'';
   const rows=[['제품코드','색상','제품명칭','가로 차이','세로 차이','높이 차이','CBM 차이','중량 차이','판정','측정일']];
   baseItems.forEach(base=>{
-    if(q && !base.code.toLowerCase().includes(q) && !base.name.toLowerCase().includes(q)) return;
-    const mList=measurementsForBase(base).sort((a,b)=>b.id-a.id);
+    if(selectedBaseId && String(base.id)!==String(selectedBaseId)) return;
+    const mList=measurementsForBase(base).sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0));
     if(!mList.length) return;
     const m=mList[0];
     const mDate=fmtDate(m.date);
@@ -1684,7 +1713,7 @@ else window.addEventListener('load', initApp);
   function latestFor(base, meas){
     var list=measurementsForBaseCompat(base,meas), best=null;
     for(var i=0;i<list.length;i++){
-      if(!best || Number(list[i].id||0)>Number(best.id||0)) best=list[i];
+      if(!best || String(list[i].date)>String(best.date) || (String(list[i].date)===String(best.date) && Number(list[i].id||0)>Number(best.id||0))) best=list[i];
     }
     return best;
   }
@@ -1713,13 +1742,20 @@ else window.addEventListener('load', initApp);
       compatBase = (server.base && server.base.length ? server.base : FALLBACK_BASE).slice();
       compatMeas = (server.measurements && server.measurements.length ? server.measurements : FALLBACK_MEAS).slice();
       compatLoaded = true;
+      updateCodeSel(compatBase,compatMeas);
     }
     var base = compatBase;
     var meas = compatMeas;
+    var selectedBaseId=byId('cmpQ')?byId('cmpQ').value:'', from=byId('cmpFrom')?byId('cmpFrom').value:'', to=byId('cmpTo')?byId('cmpTo').value:'', tol=Number(byId('tol')&&byId('tol').value)||5;
     var total=0, ok=0, err=0, rows=[];
     for(var i=0;i<base.length;i++){
-      var b=base[i], m=latestFor(b, meas);
+      var b=base[i];
+      if(selectedBaseId && String(b.id)!==String(selectedBaseId)) continue;
+      var m=latestFor(b, meas);
       if(!m) continue;
+      var mDate=fmtDateCompat(m.date);
+      if(from && mDate<from) continue;
+      if(to && mDate>to) continue;
       total++;
       var bC=cbm(b), mC=cbm(m);
       var pcts=[
@@ -1730,9 +1766,9 @@ else window.addEventListener('load', initApp);
         bC>0?Math.abs((mC-bC)/bC*100):0
       ];
       var maxP=Math.max.apply(Math,pcts);
-      var cls=maxP<=5?'row-ok':maxP<=10?'row-warn':'row-err';
-      if(maxP<=5) ok++; else err++;
-      var judge=maxP<=5?'<span class="sp sp-ok">정상</span>':maxP<=10?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
+      var cls=maxP<=tol?'row-ok':maxP<=tol*2?'row-warn':'row-err';
+      if(maxP<=tol) ok++; else err++;
+      var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':maxP<=tol*2?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
       rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td></tr>');
     }
     var filtered = [];
@@ -1945,7 +1981,7 @@ else window.addEventListener('load', initApp);
     if(!b || !confirm('"'+b.code+'" 삭제할까요?')) return;
     compatBase=compatBase.filter(function(x){ return String(x.id)!==String(id); });
     compatMeas=compatMeas.filter(function(x){ return String(x.baseId)!==String(id); });
-    renderBaseCompat(); renderMeasCompat(); renderCompat(); syncCompat();
+    updateCodeSel(compatBase,compatMeas); renderBaseCompat(); renderMeasCompat(); renderCompat(); syncCompat();
   };
   window.openMeasForm=function(id){
     var m=null;
@@ -1953,7 +1989,12 @@ else window.addEventListener('load', initApp);
     if(!m) return;
     compatMeasEditId=m.id;
     switchTab('meas');
-    if(byId('mf_code')) byId('mf_code').value=m.code||'';
+    if(byId('mf_code')){
+      var selectedBase=null;
+      for(var bIdx=0;bIdx<compatBase.length;bIdx++){ if(String(compatBase[bIdx].id)===String(m.baseId)){ selectedBase=compatBase[bIdx]; break; } }
+      if(!selectedBase){ for(var cIdx=0;cIdx<compatBase.length;cIdx++){ if(compatBase[cIdx].code===m.code){ selectedBase=compatBase[cIdx]; break; } } }
+      byId('mf_code').value=selectedBase?String(selectedBase.id):'';
+    }
     if(byId('mf_date')) byId('mf_date').value=fmtDateCompat(m.date)||'';
     if(byId('mf_by')) byId('mf_by').value=m.by||'';
     if(byId('mf_w')) byId('mf_w').value=m.w||'';
@@ -1966,7 +2007,7 @@ else window.addEventListener('load', initApp);
   window.delMeas=function(id){
     if(!confirm('이 실측 기록을 삭제할까요?')) return;
     compatMeas=compatMeas.filter(function(x){ return String(x.id)!==String(id); });
-    renderMeasCompat(); renderCompat(); syncCompat();
+    updateCodeSel(compatBase,compatMeas); renderMeasCompat(); renderCompat(); syncCompat();
   };
   window.saveBase=function(){
     var code=(byId('bf_code')&&byId('bf_code').value||'').trim().toUpperCase();
@@ -1981,21 +2022,23 @@ else window.addEventListener('load', initApp);
     }
     if(byId('bfpTitle')) byId('bfpTitle').textContent='기준 데이터 입력';
     if(byId('bBtnTxt')) byId('bBtnTxt').textContent='저장';
-    resetBaseForm(); renderBaseCompat(); renderCompat(); syncCompat();
+    resetBaseForm(); updateCodeSel(compatBase,compatMeas); renderBaseCompat(); renderCompat(); syncCompat();
   };
   window.saveMeas=function(){
-    var code=(byId('mf_code')&&byId('mf_code').value||'').trim().toUpperCase();
+    var selectedBaseId=(byId('mf_code')&&byId('mf_code').value||''), selectedBase=null;
+    for(var sIdx=0;sIdx<compatBase.length;sIdx++){ if(String(compatBase[sIdx].id)===String(selectedBaseId)){ selectedBase=compatBase[sIdx]; break; } }
+    var code=selectedBase?selectedBase.code:'';
     var date=(byId('mf_date')&&byId('mf_date').value)||new Date().toISOString().slice(0,10);
     var w=Number(byId('mf_w')&&byId('mf_w').value), d=Number(byId('mf_d')&&byId('mf_d').value), h=Number(byId('mf_h')&&byId('mf_h').value), kg=Number(byId('mf_kg')&&byId('mf_kg').value);
     if(!code||!(w>0)||!(d>0)||!(h>0)||!(kg>0)){ alert('필수 항목을 입력해 주세요.'); return; }
-    var baseId=null; for(var i=0;i<compatBase.length;i++){ if(compatBase[i].code===code){ baseId=compatBase[i].id; break; } }
+    var baseId=selectedBase?selectedBase.id:null;
     if(compatMeasEditId!==null){
       for(var j=0;j<compatMeas.length;j++){ if(String(compatMeas[j].id)===String(compatMeasEditId)){ compatMeas[j]={id:compatMeas[j].id,code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:compatMeas[j].memo||''}; break; } }
       compatMeasEditId=null;
     } else {
       compatMeas.push({id:Date.now(),code:code,baseId:baseId,date:date,by:(byId('mf_by')&&byId('mf_by').value||''),w:w,d:d,h:h,kg:kg,memo:''});
     }
-    resetMeasForm(); renderMeasCompat(); renderCompat(); syncCompat();
+    resetMeasForm(); updateCodeSel(compatBase,compatMeas); renderMeasCompat(); renderCompat(); syncCompat();
   };
   function initCompatCompare(){
     window.setCmpStatus(compatCmpStatus);
