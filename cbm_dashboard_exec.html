@@ -746,6 +746,9 @@ function applyCloudData(json){
   ensureSeedData();
   store.set('cbm_base', JSON.stringify(baseItems));
   store.set('cbm_meas', JSON.stringify(measurements));
+  if(typeof window.updateCompatDataFromPrimary==='function'){
+    window.updateCompatDataFromPrimary(baseItems,measurements,true);
+  }
   renderAll();
   setSyncStatus(nextBase.length && nextMeas.length ? `동기화 완료` : '기본 데이터 표시 중', nextBase.length && nextMeas.length ? 'ok' : 'warn');
 }
@@ -1819,6 +1822,7 @@ else window.addEventListener('load', initApp);
   var compatBase = [];
   var compatMeas = [];
   var compatLoaded = false;
+  var compatCloudSynced = false;
   var compatCmpStatus = 'all';
   function getServer(){
     var el=byId('server-data');
@@ -1856,8 +1860,11 @@ else window.addEventListener('load', initApp);
   function renderCompat(){
     var server=getServer() || {};
     if(!compatLoaded){
-      compatBase = (server.base && server.base.length ? server.base : FALLBACK_BASE).slice();
-      compatMeas = (server.measurements && server.measurements.length ? server.measurements : FALLBACK_MEAS).slice();
+      var primaryBase=(typeof baseItems!=='undefined' && Array.isArray(baseItems) && baseItems.length)?baseItems:null;
+      var primaryMeas=(typeof measurements!=='undefined' && Array.isArray(measurements) && measurements.length)?measurements:null;
+      compatBase = (server.base && server.base.length ? server.base : primaryBase || FALLBACK_BASE).slice();
+      compatMeas = (server.measurements && server.measurements.length ? server.measurements : primaryMeas || FALLBACK_MEAS).slice();
+      compatCloudSynced=!!(server.base&&server.measurements);
       compatLoaded = true;
       updateCodeSel(compatBase,compatMeas);
     }
@@ -1901,10 +1908,18 @@ else window.addEventListener('load', initApp);
     if(byId('compareTb')) byId('compareTb').innerHTML=filtered.length ? filtered.join('') : '<tr><td colspan="10" class="empty-state"><div class="ei">📊</div><p>조건에 맞는 데이터가 없습니다.</p></td></tr>';
     if(byId('compareInfo')) byId('compareInfo').textContent='총 '+total+'건 비교 · 정상 '+ok+'건 · 오류 '+err+'건';
     if(byId('syncStatus')) {
-      byId('syncStatus').textContent=server.base&&server.measurements?'동기화 완료':'기본 데이터 표시 중';
-      byId('syncStatus').className='sync-chip '+(server.base&&server.measurements?'ok':'warn');
+      var synced=compatCloudSynced||!!(server.base&&server.measurements);
+      byId('syncStatus').textContent=synced?'동기화 완료':'기본 데이터 표시 중';
+      byId('syncStatus').className='sync-chip '+(synced?'ok':'warn');
     }
   }
+  window.updateCompatDataFromPrimary=function(nextBase,nextMeas,cloudSynced){
+    if(Array.isArray(nextBase) && nextBase.length) compatBase=nextBase.slice();
+    if(Array.isArray(nextMeas) && nextMeas.length) compatMeas=nextMeas.slice();
+    compatLoaded=true;
+    if(cloudSynced) compatCloudSynced=true;
+    updateCodeSel(compatBase,compatMeas);
+  };
   window.setCmpStatus=function(s){
     compatCmpStatus=s || 'all';
     var colors={all:'#1A56DB',ok:'#0A7C59',err:'#991B1B'};
