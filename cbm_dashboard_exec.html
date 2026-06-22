@@ -225,12 +225,11 @@ td{padding:13px 16px;color:var(--g800);border-bottom:1px solid var(--g100);text-
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:var(--g50);}
 tr.editing td{background:#EBF0FD!important;}
-tr.row-err td{background:#FFF8F8;} tr.row-warn td{background:#FFFBF2;} tr.row-ok td{background:#F0FDF8;}
-tr.row-err:hover td{background:#FEE2E2;} tr.row-warn:hover td{background:#FEF3C7;}
+tr.row-err td{background:#FFF8F8;} tr.row-ok td{background:#F0FDF8;}
+tr.row-err:hover td{background:#FEE2E2;}
 .cbm-pill{display:inline-block;background:var(--blue-lt);color:var(--blue);border:1px solid #BFCFF7;border-radius:5px;padding:4px 11px;font-size:19px;font-weight:700;}
 .sp{display:inline-block;border-radius:4px;padding:4px 11px;font-size:19px;font-weight:700;}
 .sp-ok{background:var(--teal-lt);color:var(--teal);}
-.sp-warn{background:var(--amber-lt);color:var(--amber);}
 .sp-err{background:var(--red-lt);color:var(--red);}
 .cd{display:inline-flex;align-items:center;gap:4px;}
 .cd-dot{width:9px;height:9px;border-radius:50%;border:1px solid var(--g200);flex-shrink:0;}
@@ -1295,8 +1294,8 @@ function renderCompare(){
       bC>0?Math.abs((mC-bC)/bC*100):0,
     ];
     const maxP=Math.max(...pcts);
-    const cls=maxP<=tol?'row-ok':maxP<=tol*2?'row-warn':'row-err';
-    const judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':maxP<=tol*2?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
+    const cls=maxP<=tol?'row-ok':'row-err';
+    const judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':'<span class="sp sp-err">오류</span>';
     function dc(bv,mv,dec=0){
       const dv=mv-bv, p=bv>0?dv/bv*100:0, ap=Math.abs(p);
       const cl=ap<=tol?'diff-ok':'diff-up';
@@ -1317,15 +1316,16 @@ function renderCompare(){
       <td>${judge}</td><td><span class="date-pill">${mDate}</span></td>
     </tr>`});
   });
-  rows.sort((a,b)=>['row-err','row-warn','row-ok'].indexOf(a.cls)-['row-err','row-warn','row-ok'].indexOf(b.cls));
+  rows.sort((a,b)=>['row-err','row-ok'].indexOf(a.cls)-['row-err','row-ok'].indexOf(b.cls));
   const filtered = cmpStatusVal==='ok'  ? rows.filter(r=>r.cls==='row-ok')
-                 : cmpStatusVal==='err' ? rows.filter(r=>r.cls==='row-err'||r.cls==='row-warn')
+                 : cmpStatusVal==='err' ? rows.filter(r=>r.cls==='row-err')
                  : rows;
   document.getElementById('compareTb').innerHTML=filtered.length
     ?filtered.map(r=>r.html).join('')
-    :`<tr><td colspan="9" class="empty-state"><div class="ei">📊</div><p>실측 데이터가 없습니다.</p></td></tr>`;
-  const e=rows.filter(r=>r.cls==='row-err').length, w=rows.filter(r=>r.cls==='row-warn').length;
-  document.getElementById('compareInfo').textContent=`${filtered.length}건 비교 · 오류 ${e}건`;
+    :`<tr><td colspan="10" class="empty-state"><div class="ei">📊</div><p>실측 데이터가 없습니다.</p></td></tr>`;
+  const normalCount=rows.filter(r=>r.cls==='row-ok').length;
+  const errorCount=rows.filter(r=>r.cls==='row-err').length;
+  document.getElementById('compareInfo').textContent=`총 ${rows.length}건 비교 · 정상 ${normalCount}건 · 오류 ${errorCount}건`;
 }
 function exportCompareExcel(){
   const tol=parseFloat(document.getElementById('tol').value)||5;
@@ -1351,7 +1351,7 @@ function exportCompareExcel(){
       base.kg>0?Math.abs((m.kg-base.kg)/base.kg*100):0,
       bC>0?Math.abs((mC-bC)/bC*100):0
     );
-    const judge=maxP<=tol?'정상':maxP<=tol*2?'경고':'오류';
+    const judge=maxP<=tol?'정상':'오류';
     rows.push([base.code,base.color||'',base.name,Math.round(m.w-base.w),Math.round(m.d-base.d),Math.round(m.h-base.h),parseFloat((mC-bC).toFixed(3)),parseFloat((m.kg-base.kg).toFixed(1)),judge,mDate]);
   });
   if(rows.length<=1){alert('내려받을 데이터가 없습니다.');return;}
@@ -1535,7 +1535,7 @@ function downloadDetailExcel(){
     const measuredCbm=calcCBM(Number(m.w)||0,Number(m.d)||0,Number(m.h)||0);
     const pairs=[[base.w,m.w],[base.d,m.d],[base.h,m.h],[base.kg,m.kg],[baseCbm,measuredCbm]];
     const maxPercent=Math.max(...pairs.map(([standard,actual])=>Number(standard)>0?Math.abs((Number(actual||0)-Number(standard))/Number(standard)*100):0));
-    const judge=maxPercent<=tol?'정상':maxPercent<=tol*2?'경고':'오류';
+    const judge=maxPercent<=tol?'정상':'오류';
     rows.push([base.code,base.color||'',base.name||'',fmtDate(m.date),m.by||'',Number(m.w)||0,Number(m.d)||0,Number(m.h)||0,Number(m.kg)||0,Number(measuredCbm.toFixed(5)),judge]);
   });
   const wb=XLSX.utils.book_new();
@@ -1602,7 +1602,7 @@ function showDetail(code, baseId){
     const mvs=[m.w,m.d,m.h,mC,m.kg];
     const pcts=vals.map((bv,i)=>bv>0?(mvs[i]-bv)/bv*100:0);
     const maxP=Math.max(...pcts.map(Math.abs));
-    const judge=maxP<=tol?`<span class="sp sp-ok">정상</span>`:maxP<=tol*2?`<span class="sp sp-warn">경고</span>`:`<span class="sp sp-err">오류</span>`;
+    const judge=maxP<=tol?`<span class="sp sp-ok">정상</span>`:`<span class="sp sp-err">오류</span>`;
     function dc(bv,mv){const d=mv-bv,p=bv>0?d/bv*100:0,ok=Math.abs(p)<=tol;return`<span class="${ok?'d-ok':'d-err'}">(${p>=0?'+':''}${p.toFixed(1)}%)</span>`;}
     return`<tr>
       <td><span class="date-pill">${fmtDate(m.date)}</span></td><td>${m.by||'—'}</td>
@@ -1884,9 +1884,9 @@ else window.addEventListener('load', initApp);
         bC>0?Math.abs((mC-bC)/bC*100):0
       ];
       var maxP=Math.max.apply(Math,pcts);
-      var cls=maxP<=tol?'row-ok':maxP<=tol*2?'row-warn':'row-err';
+      var cls=maxP<=tol?'row-ok':'row-err';
       if(maxP<=tol) ok++; else err++;
-      var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':maxP<=tol*2?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
+      var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':'<span class="sp sp-err">오류</span>';
       rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td></tr>');
     }
     var filtered = [];
@@ -1898,8 +1898,8 @@ else window.addEventListener('load', initApp);
     if(byId('kpi-total')) byId('kpi-total').textContent=total;
     if(byId('kpi-ok')) byId('kpi-ok').textContent=ok;
     if(byId('kpi-err')) byId('kpi-err').textContent=err;
-    if(byId('compareTb')) byId('compareTb').innerHTML=filtered.length ? filtered.join('') : '<tr><td colspan="9" class="empty-state"><div class="ei">📊</div><p>조건에 맞는 데이터가 없습니다.</p></td></tr>';
-    if(byId('compareInfo')) byId('compareInfo').textContent=filtered.length+'건 비교 · 오류 '+err+'건';
+    if(byId('compareTb')) byId('compareTb').innerHTML=filtered.length ? filtered.join('') : '<tr><td colspan="10" class="empty-state"><div class="ei">📊</div><p>조건에 맞는 데이터가 없습니다.</p></td></tr>';
+    if(byId('compareInfo')) byId('compareInfo').textContent='총 '+total+'건 비교 · 정상 '+ok+'건 · 오류 '+err+'건';
     if(byId('syncStatus')) {
       byId('syncStatus').textContent=server.base&&server.measurements?'동기화 완료':'기본 데이터 표시 중';
       byId('syncStatus').className='sync-chip '+(server.base&&server.measurements?'ok':'warn');
@@ -2048,7 +2048,7 @@ else window.addEventListener('load', initApp);
     function histRow(m){
       var mC=cbm(m), vals=[b.w,b.d,b.h,bC,b.kg], mvs=[m.w,m.d,m.h,mC,m.kg], maxP=0;
       for(var k=0;k<vals.length;k++){ var p=Number(vals[k])>0?(Number(mvs[k]||0)-Number(vals[k]||0))/Number(vals[k])*100:0; maxP=Math.max(maxP,Math.abs(p)); }
-      var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':maxP<=tol*2?'<span class="sp sp-warn">경고</span>':'<span class="sp sp-err">오류</span>';
+      var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':'<span class="sp sp-err">오류</span>';
       function dc(bv,mv){ return '<span class="'+clsPct(bv,mv)+'">('+pct(bv,mv)+')</span>'; }
       return '<tr><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td><td>'+esc(m.by||'-')+'</td><td>'+esc(m.w)+'<br><small>'+dc(b.w,m.w)+'</small></td><td>'+esc(m.d)+'<br><small>'+dc(b.d,m.d)+'</small></td><td>'+esc(m.h)+'<br><small>'+dc(b.h,m.h)+'</small></td><td>'+Number(m.kg||0).toFixed(1)+'<br><small>'+dc(b.kg,m.kg)+'</small></td><td><span class="cbm-pill">'+mC.toFixed(3)+'</span><br><small>'+dc(bC,mC)+'</small></td><td>'+judge+'</td></tr>';
     }
