@@ -878,15 +878,33 @@ function clearE(fid,eid){
 }
 
 /* ── KPI ── */
+function setKpiCounts(total, ok, err){
+  const totalEl=document.getElementById('kpi-total');
+  const okEl=document.getElementById('kpi-ok');
+  const errEl=document.getElementById('kpi-err');
+  if(totalEl) totalEl.textContent = total;
+  if(okEl) okEl.textContent = ok;
+  if(errEl) errEl.textContent = err;
+}
+
 function renderKPI(){
   ensureSeedData();
   const tol=parseFloat((document.getElementById('tol')||{value:'5'}).value)||5;
+  const selectedCode=(document.getElementById('cmpCode')||{value:''}).value.trim().toUpperCase();
+  const selectedColor=(document.getElementById('cmpColor')||{value:''}).value.trim().toUpperCase();
+  const from=(document.getElementById('cmpFrom')||{value:''}).value;
+  const to=(document.getElementById('cmpTo')||{value:''}).value;
   let total=0, ok=0, err=0;
   baseItems.forEach(base=>{
+    if(selectedCode && !String(base.code||'').toUpperCase().includes(selectedCode)) return;
+    if(selectedColor && !String(base.color||'').toUpperCase().includes(selectedColor)) return;
     const mList=measurementsForBase(base);
     if(!mList.length) return;
-    total++;
     const m=mList.sort((a,b)=>String(b.date).localeCompare(String(a.date))||Number(b.id||0)-Number(a.id||0))[0];
+    const mDate=fmtDate(m.date);
+    if(from && mDate < from) return;
+    if(to   && mDate > to)   return;
+    total++;
     const bC=calcCBM(base.w,base.d,base.h), mC=calcCBM(m.w,m.d,m.h);
     const maxP=Math.max(
       base.w>0?Math.abs((m.w-base.w)/base.w*100):0,
@@ -897,9 +915,7 @@ function renderKPI(){
     );
     if(maxP<=tol) ok++; else err++;
   });
-  document.getElementById('kpi-total').textContent = total;
-  document.getElementById('kpi-ok').textContent    = ok;
-  document.getElementById('kpi-err').textContent   = err;
+  setKpiCounts(total, ok, err);
   const d=new Date();
   const hdrDate = document.getElementById('hdr-date');
   if(hdrDate) hdrDate.textContent = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
@@ -1328,6 +1344,7 @@ function renderCompare(){
     :`<tr><td colspan="10" class="empty-state"><div class="ei">📊</div><p>실측 데이터가 없습니다.</p></td></tr>`;
   const normalCount=rows.filter(r=>r.cls==='row-ok').length;
   const errorCount=rows.filter(r=>r.cls==='row-err').length;
+  setKpiCounts(rows.length, normalCount, errorCount);
   document.getElementById('compareInfo').textContent=`총 ${rows.length}건 비교 · 정상 ${normalCount}건 · 오류 ${errorCount}건`;
 }
 function exportCompareExcel(){
