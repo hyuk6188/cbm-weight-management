@@ -216,6 +216,8 @@ tr.clickable:hover td{background:var(--g50);cursor:pointer;}
 /* TABLE */
 .tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--g200);box-shadow:0 1px 4px rgba(0,0,0,.06);}
 table{width:100%;border-collapse:collapse;font-size:20px;white-space:nowrap;}
+.compare-table th,.compare-table td{overflow:hidden;text-overflow:ellipsis;}
+.compare-table .name-cell{max-width:0;}
 .meas-table{table-layout:fixed;min-width:1280px;}
 .meas-table th,.meas-table td{padding-left:10px;padding-right:10px;overflow:hidden;text-overflow:ellipsis;}
 .meas-table th:last-child,.meas-table td:last-child{padding-left:5px;padding-right:5px;overflow:visible;}
@@ -1329,7 +1331,7 @@ function renderCompare(){
       return`<td class="${cl}" style="font-weight:600;">${dv>=0?'+':''}${dv.toFixed(3)}<br><span style="font-size:15px;font-weight:400;color:${pc};">(${p>=0?'+':''}${p.toFixed(1)}%)</span></td>`;
     }
     rows.push({cls,html:`<tr class="${cls} clickable" ondblclick="showDetail('${base.code}','${base.id}')" title="더블클릭: 상세 비교">
-      <td style="font-weight:600;cursor:pointer;">${base.code}</td><td>${base.color||'—'}</td><td>${base.name}</td>
+      <td style="font-weight:600;cursor:pointer;">${base.code}</td><td>${base.color||'—'}</td><td class="name-cell">${base.name}</td>
       ${dc(base.w,m.w)}${dc(base.d,m.d)}${dc(base.h,m.h)}
       ${dcCbm(bC,mC)}${dc(base.kg,m.kg,1)}
       <td>${judge}</td><td><span class="date-pill">${mDate}</span></td>
@@ -1911,7 +1913,7 @@ else window.addEventListener('load', initApp);
       var cls=maxP<=tol?'row-ok':'row-err';
       if(maxP<=tol) ok++; else err++;
       var judge=maxP<=tol?'<span class="sp sp-ok">정상</span>':'<span class="sp sp-err">오류</span>';
-      rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td>'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td></tr>');
+      rows.push('<tr class="'+cls+' clickable" data-code="'+attr(b.code)+'" data-base-id="'+attr(b.id)+'" ondblclick="showDetail(\''+attr(b.code)+'\',\''+attr(b.id)+'\')" title="더블클릭: 상세 비교"><td style="font-weight:600;cursor:pointer;">'+esc(b.code)+'</td><td>'+esc(b.color||'')+'</td><td class="name-cell" title="'+attr(b.name)+'">'+esc(b.name)+'</td>'+diffCell(b.w,m.w,0)+diffCell(b.d,m.d,0)+diffCell(b.h,m.h,0)+diffCell(bC,mC,3)+diffCell(b.kg,m.kg,1)+'<td>'+judge+'</td><td><span class="date-pill">'+esc(fmtDateCompat(m.date))+'</span></td></tr>');
     }
     var filtered = [];
     for(var r=0;r<rows.length;r++){
